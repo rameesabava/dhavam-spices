@@ -13,22 +13,26 @@ const NAV_LINKS = [
   { label: "Contact", href: "/contact" },
 ] as const;
 
+
 function Logo() {
   return (
     <Link
       href="/"
       aria-label="Dhavam Spices, home"
-      className="flex items-center gap-2.5 rounded-lg py-5 text-[#3f4a24] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#9a432a]"
+      className="flex shrink-0 items-center rounded-lg py-2 text-[#3f4a24] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#9a432a]"
     >
       <Image
-        width={200}
-        height={50}
         src="/images/logo.png"
         alt="Dhavam Spices logo"
+        width={220}
+        height={60}
+        priority
+        className="h-auto w-[185px] object-contain sm:w-[200px] md:w-[215px]"
       />
     </Link>
   );
 }
+
 
 export default function Header() {
   const pathname = usePathname();
@@ -110,8 +114,7 @@ export default function Header() {
           : "border-transparent"
       }`}
     >
-      <div className="mx-auto flex h-16 max-w-[1200px] items-center gap-10 px-4 md:h-[72px] md:px-6">
-        <Logo />
+<div className="mx-auto flex min-h-[76px] max-w-[1200px] items-center gap-3 px-3 sm:gap-5 sm:px-4 md:h-[80px] md:px-6">        <Logo />
 
         {/* Navigation */}
         <nav
