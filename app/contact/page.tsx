@@ -11,7 +11,7 @@ const PHONES = [
   { display: "63830 73503", tel: "+916383073503" },
   { display: "81481 23417", tel: "+918148123417" },
 ];
-const EMAIL = "Dhavamspices@gmail.com";
+const EMAIL = "dhavamspices@gmail.com";
 const ADDRESS = ["Casagrand Northern Star", "Madhavaram, Chennai 600110"];
 const MAPS_URL =
   "https://www.google.com/maps/search/?api=1&query=Casagrand+Northern+Star+Madhavaram+Chennai+600110";
