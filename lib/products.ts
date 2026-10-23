@@ -22,7 +22,7 @@ export const PRODUCTS: Product[] = [
   { slug: "cardamom-powder", name: "Cardamom Powder", group: "ground", blurb: "Fresh ground and sweetly aromatic, for tea, milk drinks, desserts and baking.", sizes: ["50 g", "100 g", "200 g", "250 g"], image: "cardamom-powder" },
   { slug: "pepper-powder", name: "Black Pepper Powder", group: "ground", blurb: "Finely ground with bold aroma, ready to blend into curries, soups and sauces.", sizes: ["80 g", "100 g", "150 g", "250 g"], image: "black-pepper-powder" },
   { slug: "cinnamon-powder", name: "Cinnamon Powder", group: "ground", blurb: "Smooth, warm powder that mixes easily into baking, beverages and everyday cooking.", sizes: ["50 g", "100 g", "200 g", "250 g"], image: "cinnamon-powder" },
-  { slug: "black-coffee-powder", name: "Black Coffee Powder", group: "ground", blurb: "Dark, aromatic coffee powder. Message us for sizes and availability.", sizes: [] },
+  { slug: "black-coffee-powder", name: "Black Coffee Powder", group: "ground", blurb: "Dark, aromatic coffee powder. Message us for sizes and availability.", sizes: [], image: "black-coffee-powder" },
   { slug: "combo-3-powders", name: "Cardamom, Cinnamon & Pepper Powder Combo", group: "combo", blurb: "Three essential powders for tea, desserts, rice and curries.", sizes: ["3 × 100 g"], image: "spices-combo" },
   { slug: "combo-pepper-cardamom", name: "Pepper & Cardamom Whole Spice Combo", group: "combo", blurb: "Whole black pepper and green cardamom for chai blends and kitchen staples.", sizes: [], image: "pepper-cardamom-combo" },
  

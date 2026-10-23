@@ -124,12 +124,12 @@ export default function RegisterForm() {
 
     setBusy(true);
     try {
-      await registerUser({
-        name: v.name.trim().replace(/\s+/g, " "),
-        email: v.email.trim().toLowerCase(),
-        phone: normalizePhone(v.phone),
-        password: v.password,
-      });
+     await registerUser({
+  username: v.name.trim().replace(/\s+/g, " "),
+  email: v.email.trim().toLowerCase(),
+  phone: normalizePhone(v.phone),
+  password: v.password,
+});
       setDone(true);
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Something went wrong. Please try again.");

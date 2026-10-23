@@ -74,8 +74,15 @@ export default function LoginForm() {
 
     setBusy(true);
     try {
-      await loginUser({ email: v.email.trim().toLowerCase(), password: v.password });
-      router.push("/products"); // change to wherever signed-in users should land
+      const data = await loginUser({
+  email: v.email.trim().toLowerCase(),
+  password: v.password,
+});
+
+sessionStorage.setItem("token", data.token);
+sessionStorage.setItem("username", data.user.username);
+window.dispatchEvent(new Event("authChanged"));
+router.push("/products");
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
       setBusy(false);
