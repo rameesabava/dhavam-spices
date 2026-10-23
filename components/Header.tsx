@@ -1,38 +1,37 @@
-
 "use client";
 
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Menu, X, UserRound, LogOut, ChevronRight } from "lucide-react";
 
 const NAV_LINKS = [
   { label: "Home", href: "/" },
-  { label: "Products", href: "/products" },
+  { label: "Our Products", href: "/products" },
   { label: "About Us", href: "/about" },
   { label: "Contact", href: "/contact" },
-] as const;
+];
 
-
-function Logo() {
+function Logo({ onClick }: { onClick?: () => void }) {
   return (
     <Link
       href="/"
-      aria-label="Dhavam Spices, home"
-      className="flex shrink-0 items-center rounded-lg py-2 text-[#3f4a24] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#9a432a]"
+      onClick={onClick}
+      aria-label="Dhavam Spices home"
+      className="flex shrink-0 items-center"
     >
       <Image
         src="/images/logo.png"
-        alt="Dhavam Spices logo"
+        alt="Dhavam Spices"
         width={220}
         height={60}
         priority
-        className="h-auto w-[185px] object-contain sm:w-[200px] md:w-[215px]"
+        className="h-auto w-[160px] object-contain sm:w-[175px] md:w-[190px]"
       />
     </Link>
   );
 }
-
 
 export default function Header() {
   const pathname = usePathname();
@@ -42,15 +41,12 @@ export default function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [username, setUsername] = useState("");
 
-  // Read the logged-in user from sessionStorage
   useEffect(() => {
     const updateUser = () => {
       setUsername(sessionStorage.getItem("username") || "");
     };
 
     updateUser();
-
-    // Listen for login/logout updates in this tab
     window.addEventListener("authChanged", updateUser);
 
     return () => {
@@ -58,175 +54,190 @@ export default function Header() {
     };
   }, [pathname]);
 
-  // Shadow + border once the page scrolls
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
+    const handleScroll = () => setScrolled(window.scrollY > 10);
 
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
 
-    return () => window.removeEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Close mobile menu on route change
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
 
-  // Close menu on Escape
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-
-    document.addEventListener("keydown", onKey);
-
-    return () => document.removeEventListener("keydown", onKey);
-  }, []);
-
   const handleLogout = () => {
-  sessionStorage.removeItem("token");
-  sessionStorage.removeItem("username");
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("username");
 
-  setUsername("");
-  setOpen(false);
+    setUsername("");
+    setOpen(false);
 
-  window.dispatchEvent(new Event("authChanged"));
+    window.dispatchEvent(new Event("authChanged"));
+    router.push("/");
+    router.refresh();
+  };
 
-  router.push("/"); // Redirect to Home page
-  router.refresh();
-};
-
-  const focusRing =
-    "focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#9a432a]";
-
-  const ghostBtn =
-    `inline-flex items-center justify-center rounded-full border-[1.5px] border-[#3f4a24] px-5 py-2.5 text-[0.93rem] font-semibold text-[#3f4a24] transition-colors hover:bg-[#3f4a24] hover:text-white ${focusRing}`;
-
-  const solidBtn =
-    `inline-flex items-center justify-center rounded-full border-[1.5px] border-[#9a432a] bg-[#9a432a] px-5 py-2.5 text-[0.93rem] font-semibold text-white transition-colors hover:border-[#7e3520] hover:bg-[#7e3520] ${focusRing}`;
+  const isActive = (href: string) => {
+    if (href === "/") return pathname === "/";
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
 
   return (
     <header
-      className={`sticky top-0 z-50 border-b bg-[#fbfcf8] font-[family-name:var(--font-dm-sans)] text-[#20261f] transition-[border-color,box-shadow] motion-reduce:transition-none ${
+      className={`sticky top-0 z-50 w-full border-b border-[#e5e8dc] transition-all duration-300 ${
         scrolled
-          ? "border-[#e3e8dc] shadow-[0_6px_20px_-14px_rgba(29,59,42,0.35)]"
-          : "border-transparent"
+          ? "bg-[#fffdf6]/95 shadow-[0_5px_24px_rgba(35,48,24,0.08)] backdrop-blur-xl"
+          : "bg-[#fffdf6]"
       }`}
     >
-<div className="mx-auto flex min-h-[76px] max-w-[1200px] items-center gap-3 px-3 sm:gap-5 sm:px-4 md:h-[80px] md:px-6">        <Logo />
+      <div className="mx-auto flex h-[64px] w-full max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 md:h-[70px] lg:px-8">
+        {/* Logo */}
+        <Logo onClick={() => setOpen(false)} />
 
-        {/* Navigation */}
+        {/* Desktop navigation */}
         <nav
-          id="main-nav"
-          aria-label="Main"
-          className={`${
-            open ? "block" : "hidden"
-          } absolute inset-x-0 top-full border-b border-[#e3e8dc] bg-[#fbfcf8] px-4 pb-5 pt-2 md:static md:block md:flex-1 md:border-0 md:bg-transparent md:p-0`}
+          aria-label="Main navigation"
+          className="hidden items-center gap-1 lg:flex"
         >
-          <ul className="flex flex-col gap-0.5 md:flex-row md:gap-1.5">
-            {NAV_LINKS.map(({ label, href }) => {
-              const active =
-                pathname === href || pathname.startsWith(`${href}/`);
-
-              return (
-                <li key={href}>
-                  <Link
-                    href={href}
-                    aria-current={active ? "page" : undefined}
-                    className={`block rounded-[10px] px-3 py-3.5 text-[1.05rem] font-medium transition-colors md:rounded-full md:px-3.5 md:py-2 md:text-[0.95rem] ${focusRing} ${
-                      active
-                        ? "bg-[#3f4a24] text-white"
-                        : "text-[#20261f] hover:bg-[#e6ebdc]"
-                    }`}
-                  >
-                    {label}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-
-          {/* Mobile authentication */}
-          <div className="mt-4 flex flex-col gap-2.5 md:hidden">
-            {username ? (
-              <>
-                <p className="px-3 py-2 font-semibold text-[#3f4a24]">
-                  Welcome, {username}
-                </p>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className={ghostBtn}
-                >
-                  Logout
-                </button>
-              </>
-            ) : (
-              <>
-                <Link href="/login" className={ghostBtn}>
-                  Log in
-                </Link>
-                <Link href="/register" className={solidBtn}>
-                  Create account
-                </Link>
-              </>
-            )}
-          </div>
+          {NAV_LINKS.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={isActive(item.href) ? "page" : undefined}
+              className={`relative rounded-full px-4 py-2 text-[13px] font-semibold transition-colors duration-200 ${
+                isActive(item.href)
+                  ? "bg-[#edf0e4] text-[#3f4a24]"
+                  : "text-[#5d6252] hover:bg-[#f0f1e9] hover:text-[#3f4a24]"
+              }`}
+            >
+              {item.label}
+            </Link>
+          ))}
         </nav>
 
-        {/* Desktop authentication */}
-        <div className="hidden items-center gap-2.5 md:flex">
+        {/* Desktop account actions */}
+        <div className="hidden shrink-0 items-center gap-3 lg:flex">
           {username ? (
             <>
-              <span className="max-w-[180px] truncate font-semibold text-[#3f4a24]">
-                Hi, {username}
+              <span className="flex max-w-[150px] items-center gap-2 truncate text-sm font-medium text-[#3f4a24]">
+                <UserRound size={17} />
+                <span className="truncate">Hi, {username}</span>
               </span>
+
               <button
                 type="button"
                 onClick={handleLogout}
-                className={ghostBtn}
+                className="inline-flex items-center gap-2 rounded-full border border-[#dce1d1] px-4 py-2 text-sm font-semibold text-[#3f4a24] transition hover:border-[#3f4a24] hover:bg-[#edf0e4]"
               >
+                <LogOut size={15} />
                 Logout
               </button>
             </>
           ) : (
             <>
-              <Link href="/login" className={ghostBtn}>
-                Log in
+              <Link
+                href="/login"
+                className="rounded-full px-4 py-2 text-sm font-semibold text-[#3f4a24] transition hover:bg-[#edf0e4]"
+              >
+                Login
               </Link>
-              <Link href="/register" className={solidBtn}>
-                Register
+              <Link
+                href="/register"
+                className="inline-flex items-center gap-2 rounded-full bg-[#3f4a24] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#303a1b] hover:shadow-md"
+              >
+                Get Started
+                <ChevronRight size={16} />
               </Link>
             </>
           )}
         </div>
 
-        {/* Hamburger */}
+        {/* Mobile menu button */}
         <button
           type="button"
-          aria-label={open ? "Close menu" : "Open menu"}
+          onClick={() => setOpen((previous) => !previous)}
+          aria-label={open ? "Close navigation menu" : "Open navigation menu"}
           aria-expanded={open}
-          aria-controls="main-nav"
-          onClick={() => setOpen((v) => !v)}
-          className={`ml-auto flex size-11 flex-col items-center justify-center gap-[5px] rounded-[10px] md:hidden ${focusRing}`}
+          aria-controls="mobile-navigation"
+          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#e2e5d9] text-[#3f4a24] transition hover:bg-[#edf0e4] lg:hidden"
         >
-          <span
-            className={`h-0.5 w-[22px] rounded bg-[#3f4a24] transition-transform motion-reduce:transition-none ${
-              open ? "translate-y-[7px] rotate-45" : ""
-            }`}
-          />
-          <span
-            className={`h-0.5 w-[22px] rounded bg-[#3f4a24] transition-opacity motion-reduce:transition-none ${
-              open ? "opacity-0" : ""
-            }`}
-          />
-          <span
-            className={`h-0.5 w-[22px] rounded bg-[#3f4a24] transition-transform motion-reduce:transition-none ${
-              open ? "-translate-y-[7px] -rotate-45" : ""
-            }`}
-          />
+          {open ? <X size={21} /> : <Menu size={21} />}
         </button>
+      </div>
+
+      {/* Mobile navigation */}
+      <div
+        id="mobile-navigation"
+        className={`overflow-hidden border-t border-[#e8eadf] bg-[#fffdf6] transition-all duration-300 ease-in-out lg:hidden ${
+          open
+            ? "max-h-[480px] translate-y-0 opacity-100"
+            : "pointer-events-none max-h-0 -translate-y-1 opacity-0"
+        }`}
+        aria-hidden={!open}
+      >
+        <nav
+          aria-label="Mobile navigation"
+          className="mx-auto max-w-7xl px-4 py-3 sm:px-6"
+        >
+          <div className="flex flex-col gap-1">
+            {NAV_LINKS.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                tabIndex={open ? 0 : -1}
+                aria-current={isActive(item.href) ? "page" : undefined}
+                className={`flex items-center justify-between rounded-xl px-4 py-3 text-sm font-semibold transition ${
+                  isActive(item.href)
+                    ? "bg-[#edf0e4] text-[#3f4a24]"
+                    : "text-[#555d49] hover:bg-[#f0f1e9]"
+                }`}
+              >
+                {item.label}
+                <ChevronRight size={16} className="opacity-60" />
+              </Link>
+            ))}
+          </div>
+
+          <div className="mt-3 border-t border-[#e8eadf] pt-3">
+            {username ? (
+              <div className="flex items-center justify-between gap-3 rounded-xl bg-[#f3f4ec] p-3">
+                <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-[#3f4a24]">
+                  <UserRound size={18} className="shrink-0" />
+                  <span className="truncate">Welcome, {username}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  tabIndex={open ? 0 : -1}
+                  className="inline-flex shrink-0 items-center gap-2 rounded-full border border-[#dce1d1] bg-white px-3 py-2 text-sm font-semibold text-[#3f4a24] transition hover:bg-[#edf0e4]"
+                >
+                  <LogOut size={15} />
+                  Logout
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <Link
+                  href="/login"
+                  tabIndex={open ? 0 : -1}
+                  className="flex items-center justify-center rounded-full border border-[#dce1d1] px-4 py-3 text-sm font-semibold text-[#3f4a24] transition hover:bg-[#edf0e4]"
+                >
+                  Login
+                </Link>
+                <Link
+                  href="/register"
+                  tabIndex={open ? 0 : -1}
+                  className="flex items-center justify-center gap-1 rounded-full bg-[#3f4a24] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#303a1b]"
+                >
+                  Register
+                  <ChevronRight size={16} />
+                </Link>
+              </div>
+            )}
+          </div>
+        </nav>
       </div>
     </header>
   );
