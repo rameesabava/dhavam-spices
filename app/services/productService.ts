@@ -10,6 +10,7 @@ export function getProducts(token: string) {
   });
 }
 
+
 export function getProductById(
   id: string,
   token: string

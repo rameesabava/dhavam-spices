@@ -6,7 +6,7 @@ export const metadata: Metadata = {
     "Premium, pure, unadulterated spices and masalas straight from the farm. Order by WhatsApp, phone or email.",
 };
 
-const OWNER = "Shiyas A";
+const OWNER = "Dhavam Spices";
 const PHONES = [
   { display: "63830 73503", tel: "+916383073503" },
   { display: "81481 23417", tel: "+918148123417" },

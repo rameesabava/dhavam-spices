@@ -9,6 +9,10 @@ export type RegisterPayload = {
 };
 
 export async function register(payload: RegisterPayload) {
+  if (!API_URL) {
+    throw new Error("Backend API URL is not configured.");
+  }
+
   const response = await fetch(`${API_URL}/register`, {
     method: "POST",
     headers: {
@@ -20,12 +24,13 @@ export async function register(payload: RegisterPayload) {
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new Error(data?.message || "Registration failed");
+    throw new Error(
+      data?.message || data || "Registration failed"
+    );
   }
 
   return data;
 }
-
 
 export type LoginPayload = {
   email: string;
@@ -33,8 +38,6 @@ export type LoginPayload = {
 };
 
 export async function login(payload: LoginPayload) {
-  const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
   if (!API_URL) {
     throw new Error("Backend API URL is not configured.");
   }
@@ -50,9 +53,22 @@ export async function login(payload: LoginPayload) {
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new Error(data?.message || "Login failed.");
+    throw new Error(
+      typeof data === "string"
+        ? data
+        : data?.message || "Login failed."
+    );
+  }
+
+  if (!data?.token) {
+    throw new Error("Login succeeded, but no token was returned.");
+  }
+
+  localStorage.setItem("token", data.token);
+
+  if (data.user) {
+    localStorage.setItem("user", JSON.stringify(data.user));
   }
 
   return data;
 }
-

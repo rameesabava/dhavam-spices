@@ -85,7 +85,7 @@ export default function Footer() {
           <div>
             <ColumnHeading>Contact</ColumnHeading>
             <address className="space-y-3 not-italic">
-              <p className="text-white">Shiyas A</p>
+              <p className="text-white">Dhavam Spices</p>
               <p className="leading-relaxed">
                 Casagrand Northern Star,
                 <br />
