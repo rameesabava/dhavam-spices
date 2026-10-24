@@ -26,24 +26,81 @@ export default function ProductForm() {
     setF((p) => ({ ...p, [k]: e.target.value }));
   const pick = (x?: File) => { if (x && x.type.startsWith("image/")) setFile(x); };
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (state === "saving") return;
-    if (!f.name.trim() || !f.price || !file) return setError("Add a name, a price and a photo to continue.");
-    setError("");
-    setState("saving");
-    try {
-      const body = new FormData();
-      Object.entries(f).forEach(([k, v]) => body.append(k, String(v)));
-      body.append("image", file);
-      await api.post("/products", body, { headers: { "Content-Type": "multipart/form-data" } });
-      setState("saved");
-      setTimeout(() => { setState("idle"); setFile(null); setF((p) => ({ ...p, name: "", price: "", description: "" })); }, 1800);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save the product. Please try again.");
-      setState("idle");
-    }
+  
+async function onSubmit(e: FormEvent) {
+  e.preventDefault();
+
+  if (state === "saving") return;
+
+  if (!f.name.trim() || !f.price || !file) {
+    setError("Add a name, a price and a photo to continue.");
+    return;
   }
+
+  if (Number(f.price) < 0) {
+    setError("Price cannot be negative.");
+    return;
+  }
+
+  setError("");
+  setState("saving");
+
+  try {
+    const body = new FormData();
+
+    body.append("name", f.name.trim());
+    body.append("description", f.description.trim());
+    body.append("group", f.group);
+
+    // Your backend expects sizes, so send the selected pack size
+    // as a sizes field.
+    body.append("sizes", f.size.trim());
+
+    // Include these only after adding them to your backend schema.
+    body.append("price", f.price);
+    body.append("inStock", String(f.inStock));
+
+    body.append("image", file);
+
+    // Use your existing axios instance.
+    // The API path must match your backend route.
+    await api.post("/product/add", body);
+
+    setState("saved");
+
+    window.setTimeout(() => {
+      setState("idle");
+      setFile(null);
+      setF((p) => ({
+        ...p,
+        name: "",
+        price: "",
+        description: "",
+      }));
+    }, 1800);
+  } catch (err: unknown) {
+    const message =
+      err && typeof err === "object" && "response" in err
+        ? (
+            err as {
+              response?: {
+                data?: { message?: string };
+              };
+            }
+          ).response?.data?.message
+        : undefined;
+
+    setError(
+      message ||
+        (err instanceof Error
+          ? err.message
+          : "Could not save the product. Please try again.")
+    );
+
+    setState("idle");
+  }
+}
+
 
   return (
     <div className="grid gap-8 xl:grid-cols-[1.2fr_0.8fr]">

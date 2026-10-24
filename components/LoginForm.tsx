@@ -81,8 +81,18 @@ export default function LoginForm() {
 
 sessionStorage.setItem("token", data.token);
 sessionStorage.setItem("username", data.user.username);
+
+// Save the user's role if your API returns it
+sessionStorage.setItem("role", data.user.role);
+
 window.dispatchEvent(new Event("authChanged"));
-router.push("/products");
+
+// Redirect based on the user's role
+if (data.user.role === "admin") {
+  router.push("/admin");
+} else {
+  router.push("/products");
+}
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
       setBusy(false);

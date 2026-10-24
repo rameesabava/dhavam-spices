@@ -1,84 +1,224 @@
+
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { adminService } from "@/app/services/adminService";
 
-const STATUSES = ["To confirm", "Packed", "Delivered"] as const;
-type Status = (typeof STATUSES)[number];
-type Order = { id: string; who: string; phone: string; city: string; date: string; items: { name: string; qty: number }[]; total: number; status: Status; note?: string };
+type OrderItem = {
+  productId: string;
+  productName: string;
+  productImage: string;
+  size: string;
+  quantity: number;
+};
 
-// Swap this for data from your API (GET /orders)
-const SAMPLE: Order[] = [
-  { id: "#1048", who: "Anita R.", phone: "9876543210", city: "Chennai", date: "Today, 10:42", items: [{ name: "Green cardamom, 100 g", qty: 2 }, { name: "Cloves, 50 g", qty: 1 }], total: 1180, status: "To confirm", note: "Please call after 5 pm." },
-  { id: "#1047", who: "Karthik S.", phone: "9123456780", city: "Kochi", date: "Today, 09:15", items: [{ name: "Black pepper powder, 250 g", qty: 1 }], total: 340, status: "Packed" },
-  { id: "#1046", who: "Meera J.", phone: "9988776655", city: "Coimbatore", date: "Yesterday", items: [{ name: "Cinnamon sticks, 100 g", qty: 3 }], total: 720, status: "Delivered" },
-  { id: "#1045", who: "Faizal K.", phone: "9012345678", city: "Bengaluru", date: "Yesterday", items: [{ name: "Cloves, 50 g", qty: 2 }], total: 560, status: "To confirm" },
-];
-const PILL: Record<Status, string> = { "To confirm": "bg-[#fbe9dc] text-[#9a432a]", Packed: "bg-[#e6ebdc] text-[#3f4a24]", Delivered: "bg-[#3f4a24] text-white" };
+type Order = {
+  _id: string;
+  username: string;
+  userMail: string;
+  phone: number | string;
+  address: string;
+  items: OrderItem[];
+  paymentMethod: string;
+  orderStatus: string;
+  createdAt: string;
+};
+
+const STATUS_STYLE: Record<string, string> = {
+  Placed: "bg-[#fbe9dc] text-[#9a432a]",
+  Shipped: "bg-[#e6ebdc] text-[#3f4a24]",
+};
 
 export default function OrdersBoard() {
-  const [orders, setOrders] = useState<Order[]>(SAMPLE);
-  const [tab, setTab] = useState<"All" | Status>("All");
-  const [open, setOpen] = useState<string | null>(SAMPLE[0].id);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [busyId, setBusyId] = useState("");
+  const [filter, setFilter] = useState("all");
 
-  const shown = orders.filter((o) => tab === "All" || o.status === tab);
-  const count = (s: "All" | Status) => (s === "All" ? orders.length : orders.filter((o) => o.status === s).length);
-  const setStatus = (id: string, status: Status) => setOrders((os) => os.map((o) => (o.id === id ? { ...o, status } : o))); // + api.patch
+  const loadOrders = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const token = sessionStorage.getItem("token");
+      if (!token) throw new Error("Please log in as an admin.");
+
+      const data = await adminService.getOrders(token);
+      setOrders(Array.isArray(data) ? data : data.orders ?? []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to load orders");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadOrders();
+  }, [loadOrders]);
+
+  async function markShipped(orderId: string) {
+    const token = sessionStorage.getItem("token");
+    if (!token) {
+      setError("Please log in as an admin.");
+      return;
+    }
+
+    try {
+      setBusyId(orderId);
+      setError("");
+
+      await adminService.markOrderShipped(token, orderId);
+      await loadOrders();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to update order");
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  const filtered = orders.filter((order) => {
+    if (filter === "all") return true;
+    return order.orderStatus?.toLowerCase() === filter;
+  });
 
   return (
-    <>
-      <style>{`@keyframes dh-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } } @media (prefers-reduced-motion: reduce) { .dh-card { animation: none !important; } .dh-acc { transition: none !important; } }`}</style>
-      <h1 className="font-[family-name:var(--font-bricolage)] text-3xl font-bold tracking-tight text-[#2f381b]">Orders</h1>
-      <p className="mt-1 text-[#566049]">Call new orders to confirm the price and delivery, then update the status.</p>
+    <section>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-[#2f381b]">Orders</h1>
+          <p className="mt-1 text-sm text-[#566049]">
+            View customer orders and update shipping status.
+          </p>
+        </div>
 
-      <div role="tablist" aria-label="Order status" className="mt-6 flex flex-wrap gap-2">
-        {(["All", ...STATUSES] as const).map((s) => (
-          <button key={s} role="tab" aria-selected={tab === s} onClick={() => setTab(s)} className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#9a432a]/30 ${tab === s ? "border-[#3f4a24] bg-[#3f4a24] text-white" : "border-[#cfd5bf] text-[#3f4a24] hover:border-[#3f4a24]"}`}>
-            {s} <span className={tab === s ? "text-white/70" : "text-[#7a8470]"}>{count(s)}</span>
+        <button
+          onClick={loadOrders}
+          className="rounded-full border border-[#dfe3d0] bg-white px-5 py-2.5 text-sm font-semibold text-[#3f4a24]"
+        >
+          Refresh
+        </button>
+      </div>
+
+      <div className="mb-5 flex flex-wrap gap-2">
+        {[
+          { label: "All orders", value: "all" },
+          { label: "Placed", value: "placed" },
+          { label: "Shipped", value: "shipped" },
+        ].map((option) => (
+          <button
+            key={option.value}
+            onClick={() => setFilter(option.value)}
+            className={`rounded-full px-4 py-2 text-sm font-semibold ${
+              filter === option.value
+                ? "bg-[#3f4a24] text-white"
+                : "border border-[#dfe3d0] bg-white text-[#566049]"
+            }`}
+          >
+            {option.label}
           </button>
         ))}
       </div>
 
-      <ul className="mt-6 space-y-3">
-        {shown.map((o, i) => {
-          const isOpen = open === o.id;
-          return (
-            <li key={o.id} className="dh-card overflow-hidden rounded-2xl border border-[#e3e8dc] bg-white" style={{ animation: `dh-rise 400ms ease-out ${i * 60}ms both` }}>
-              <button onClick={() => setOpen(isOpen ? null : o.id)} aria-expanded={isOpen} className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-[#9a432a]/30">
-                <span className="min-w-0">
-                  <span className="block truncate font-medium text-[#2f381b]">{o.who} <span className="text-[#7a8470]">{o.id}</span></span>
-                  <span className="block text-sm text-[#566049]">{o.date} · {o.city} · ₹{o.total}</span>
-                </span>
-                <span className="flex shrink-0 items-center gap-3">
-                  <span className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors duration-300 ${PILL[o.status]}`}>{o.status}</span>
-                  <svg viewBox="0 0 20 20" className={`size-4 text-[#566049] transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`} aria-hidden="true"><path d="M5 8l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                </span>
-              </button>
+      {error && (
+        <p role="alert" className="mb-4 rounded-xl bg-red-50 p-4 text-red-700">
+          {error}
+        </p>
+      )}
 
-              <div className={`dh-acc grid transition-[grid-template-rows] duration-300 ease-out ${isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
-                <div className="overflow-hidden">
-                  <div className="border-t border-[#edf0e4] px-5 py-4">
-                    <ul className="space-y-1 text-[#2f381b]">
-                      {o.items.map((it) => <li key={it.name} className="flex justify-between"><span>{it.name}</span><span className="text-[#566049]">× {it.qty}</span></li>)}
-                    </ul>
-                    {o.note && <p className="mt-3 rounded-xl bg-[#f6f1e4] px-4 py-2 text-sm text-[#566049]">Note: {o.note}</p>}
-                    <div className="mt-4 flex flex-wrap items-center gap-3">
-                      <a href={`tel:+91${o.phone}`} className="rounded-full bg-[#3f4a24] px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#2f381b] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#9a432a]/40">Call {o.phone}</a>
-                      <a href={`https://wa.me/91${o.phone}`} target="_blank" rel="noopener noreferrer" className="rounded-full border border-[#3f4a24] px-5 py-2 text-sm font-semibold text-[#3f4a24] transition-colors hover:bg-[#3f4a24] hover:text-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#9a432a]/40">WhatsApp</a>
-                      <label className="ml-auto flex items-center gap-2 text-sm text-[#566049]">
-                        Status
-                        <select value={o.status} onChange={(e) => setStatus(o.id, e.target.value as Status)} className="rounded-xl border border-[#cfd5bf] bg-white px-3 py-2 text-[#20261f] focus:outline-none focus:ring-4 focus:ring-[#9a432a]/25">
-                          {STATUSES.map((s) => <option key={s}>{s}</option>)}
-                        </select>
-                      </label>
-                    </div>
-                  </div>
+      {loading ? (
+        <p className="rounded-2xl border border-[#e3e8dc] bg-white p-10 text-center">
+          Loading orders...
+        </p>
+      ) : filtered.length === 0 ? (
+        <div className="rounded-2xl border border-[#e3e8dc] bg-white p-10 text-center text-[#566049]">
+          No orders found.
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {filtered.map((order) => (
+            <article
+              key={order._id}
+              className="rounded-2xl border border-[#e3e8dc] bg-white p-5 md:p-6"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs text-[#7a8470]">Order ID</p>
+                  <h2 className="mt-1 break-all font-semibold text-[#2f381b]">
+                    {order._id}
+                  </h2>
+                  <p className="mt-2 text-sm text-[#566049]">
+                    {order.createdAt
+                      ? new Date(order.createdAt).toLocaleString()
+                      : "Date unavailable"}
+                  </p>
+                </div>
+
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                    STATUS_STYLE[order.orderStatus] ??
+                    "bg-gray-100 text-gray-700"
+                  }`}
+                >
+                  {order.orderStatus || "Placed"}
+                </span>
+              </div>
+
+              <div className="mt-5 grid gap-5 border-t border-[#edf0e4] pt-5 md:grid-cols-2">
+                <div>
+                  <h3 className="font-semibold text-[#2f381b]">
+                    Customer details
+                  </h3>
+                  <p className="mt-2 text-sm text-[#566049]">
+                    {order.username}
+                  </p>
+                  <p className="text-sm text-[#566049]">{order.userMail}</p>
+                  <p className="text-sm text-[#566049]">{order.phone}</p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-[#566049]">
+                    {order.address}
+                  </p>
+                  <p className="mt-2 text-sm text-[#566049]">
+                    Payment: {order.paymentMethod || "Cash on Delivery"}
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold text-[#2f381b]">
+                    Items ordered
+                  </h3>
+                  <ul className="mt-2 space-y-3">
+                    {order.items?.map((item, index) => (
+                      <li
+                        key={`${item.productId}-${item.size}-${index}`}
+                        className="rounded-xl bg-[#f4f6ee] p-3"
+                      >
+                        <p className="font-medium text-[#2f381b]">
+                          {item.productName}
+                        </p>
+                        <p className="mt-1 text-sm text-[#566049]">
+                          Size: {item.size} · Qty: {item.quantity}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               </div>
-            </li>
-          );
-        })}
-      </ul>
-      {shown.length === 0 && <p className="mt-10 text-center text-[#566049]">No orders with this status yet.</p>}
-    </>
+
+              {order.orderStatus !== "Shipped" && (
+                <div className="mt-5 border-t border-[#edf0e4] pt-4">
+                  <button
+                    onClick={() => markShipped(order._id)}
+                    disabled={busyId === order._id}
+                    className="rounded-full bg-[#3f4a24] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#2f381b] disabled:opacity-50"
+                  >
+                    {busyId === order._id ? "Updating..." : "Mark as Shipped"}
+                  </button>
+                </div>
+              )}
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
