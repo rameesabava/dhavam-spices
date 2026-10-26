@@ -1,8 +1,15 @@
-import type { Metadata } from "next";
-import AdminShell from "@/components/AdminShell";
 
-export const metadata: Metadata = { title: { default: "Admin", template: "%s | Dhavam Admin" }, robots: { index: false } };
+import AdminHeader from "@/components/AdminHeader";
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  return <AdminShell>{children}</AdminShell>;
+export default function AdminLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <div className="min-h-screen bg-[#f7f8f3]">
+      <AdminHeader />
+      <main>{children}</main>
+    </div>
+  );
 }

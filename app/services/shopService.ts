@@ -11,7 +11,9 @@ async function request(
     ...options,
     headers: {
       Authorization: `Bearer ${token}`,
-      ...(options.body ? { "Content-Type": "application/json" } : {}),
+      ...(options.body
+        ? { "Content-Type": "application/json" }
+        : {}),
       ...options.headers,
     },
   });
@@ -42,7 +44,10 @@ export const shopService = {
   ) =>
     request("/cart/add", token, {
       method: "POST",
-      body: JSON.stringify({ productId, size }),
+      body: JSON.stringify({
+        productId,
+        size,
+      }),
     }),
 
   // Increase quantity
@@ -57,7 +62,7 @@ export const shopService = {
       method: "PUT",
     }),
 
-  // Remove one item
+  // Remove one cart item
   removeCartItem: (token: string, cartId: string) =>
     request(`/cart/remove/${cartId}`, token, {
       method: "DELETE",

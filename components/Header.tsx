@@ -1,10 +1,19 @@
+
 "use client";
 
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { Menu, X, UserRound, LogOut, ChevronRight } from "lucide-react";
+import { Suspense, useEffect, useState } from "react";
+import {
+  Menu,
+  X,
+  UserRound,
+  LogOut,
+  ChevronRight,
+  ShoppingCart,
+  Package,
+} from "lucide-react";
 
 const NAV_LINKS = [
   { label: "Home", href: "/" },
@@ -33,7 +42,7 @@ function Logo({ onClick }: { onClick?: () => void }) {
   );
 }
 
-export default function Header() {
+function HeaderContent() {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -41,6 +50,7 @@ export default function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [username, setUsername] = useState("");
 
+  // Read the logged-in username from sessionStorage.
   useEffect(() => {
     const updateUser = () => {
       setUsername(sessionStorage.getItem("username") || "");
@@ -54,15 +64,24 @@ export default function Header() {
     };
   }, [pathname]);
 
+  // Header shadow when scrolling.
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 10);
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 10);
+    };
 
     handleScroll();
-    window.addEventListener("scroll", handleScroll, { passive: true });
 
-    return () => window.removeEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, {
+      passive: true,
+    });
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
   }, []);
 
+  // Close the mobile menu after navigation.
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
@@ -75,12 +94,16 @@ export default function Header() {
     setOpen(false);
 
     window.dispatchEvent(new Event("authChanged"));
+
     router.push("/");
     router.refresh();
   };
 
   const isActive = (href: string) => {
-    if (href === "/") return pathname === "/";
+    if (href === "/") {
+      return pathname === "/";
+    }
+
     return pathname === href || pathname.startsWith(`${href}/`);
   };
 
@@ -93,7 +116,6 @@ export default function Header() {
       }`}
     >
       <div className="mx-auto flex h-[64px] w-full max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 md:h-[70px] lg:px-8">
-        {/* Logo */}
         <Logo onClick={() => setOpen(false)} />
 
         {/* Desktop navigation */}
@@ -118,18 +140,42 @@ export default function Header() {
         </nav>
 
         {/* Desktop account actions */}
-        <div className="hidden shrink-0 items-center gap-3 lg:flex">
+        <div className="hidden shrink-0 items-center gap-2 lg:flex">
           {username ? (
             <>
-              <span className="flex max-w-[150px] items-center gap-2 truncate text-sm font-medium text-[#3f4a24]">
-                <UserRound size={17} />
+              <Link
+                href="/cart"
+                className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold transition ${
+                  isActive("/cart")
+                    ? "bg-[#edf0e4] text-[#3f4a24]"
+                    : "text-[#3f4a24] hover:bg-[#edf0e4]"
+                }`}
+              >
+                <ShoppingCart size={17} />
+                My Cart
+              </Link>
+
+              <Link
+                href="/myOrders"
+                className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold transition ${
+                  isActive("/myOrders")
+                    ? "bg-[#edf0e4] text-[#3f4a24]"
+                    : "text-[#3f4a24] hover:bg-[#edf0e4]"
+                }`}
+              >
+                <Package size={17} />
+                My Orders
+              </Link>
+
+              <span className="flex max-w-[130px] items-center gap-2 truncate text-sm font-medium text-[#3f4a24]">
+                <UserRound size={17} className="shrink-0" />
                 <span className="truncate">Hi, {username}</span>
               </span>
 
               <button
                 type="button"
                 onClick={handleLogout}
-                className="inline-flex items-center gap-2 rounded-full border border-[#dce1d1] px-4 py-2 text-sm font-semibold text-[#3f4a24] transition hover:border-[#3f4a24] hover:bg-[#edf0e4]"
+                className="inline-flex items-center gap-2 rounded-full border border-[#dce1d1] px-3 py-2 text-sm font-semibold text-[#3f4a24] transition hover:border-[#3f4a24] hover:bg-[#edf0e4]"
               >
                 <LogOut size={15} />
                 Logout
@@ -143,6 +189,7 @@ export default function Header() {
               >
                 Login
               </Link>
+
               <Link
                 href="/register"
                 className="inline-flex items-center gap-2 rounded-full bg-[#3f4a24] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#303a1b] hover:shadow-md"
@@ -172,10 +219,11 @@ export default function Header() {
         id="mobile-navigation"
         className={`overflow-hidden border-t border-[#e8eadf] bg-[#fffdf6] transition-all duration-300 ease-in-out lg:hidden ${
           open
-            ? "max-h-[480px] translate-y-0 opacity-100"
+            ? "max-h-[650px] translate-y-0 opacity-100"
             : "pointer-events-none max-h-0 -translate-y-1 opacity-0"
         }`}
         aria-hidden={!open}
+        inert={!open}
       >
         <nav
           aria-label="Mobile navigation"
@@ -202,18 +250,51 @@ export default function Header() {
 
           <div className="mt-3 border-t border-[#e8eadf] pt-3">
             {username ? (
-              <div className="flex items-center justify-between gap-3 rounded-xl bg-[#f3f4ec] p-3">
-                <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-[#3f4a24]">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 rounded-xl bg-[#f3f4ec] p-3 text-sm font-semibold text-[#3f4a24]">
                   <UserRound size={18} className="shrink-0" />
                   <span className="truncate">Welcome, {username}</span>
                 </div>
+
+                <Link
+                  href="/cart"
+                  tabIndex={open ? 0 : -1}
+                  className={`flex items-center justify-between rounded-xl border px-4 py-3 text-sm font-semibold transition ${
+                    isActive("/cart")
+                      ? "border-[#cdd5bd] bg-[#edf0e4] text-[#3f4a24]"
+                      : "border-[#e2e5d9] text-[#3f4a24] hover:bg-[#edf0e4]"
+                  }`}
+                >
+                  <span className="flex items-center gap-3">
+                    <ShoppingCart size={18} />
+                    My Cart
+                  </span>
+                  <ChevronRight size={16} />
+                </Link>
+
+                <Link
+                  href="/myOrders"
+                  tabIndex={open ? 0 : -1}
+                  className={`flex items-center justify-between rounded-xl border px-4 py-3 text-sm font-semibold transition ${
+                    isActive("/myOrders")
+                      ? "border-[#cdd5bd] bg-[#edf0e4] text-[#3f4a24]"
+                      : "border-[#e2e5d9] text-[#3f4a24] hover:bg-[#edf0e4]"
+                  }`}
+                >
+                  <span className="flex items-center gap-3">
+                    <Package size={18} />
+                    My Orders
+                  </span>
+                  <ChevronRight size={16} />
+                </Link>
+
                 <button
                   type="button"
                   onClick={handleLogout}
                   tabIndex={open ? 0 : -1}
-                  className="inline-flex shrink-0 items-center gap-2 rounded-full border border-[#dce1d1] bg-white px-3 py-2 text-sm font-semibold text-[#3f4a24] transition hover:bg-[#edf0e4]"
+                  className="flex w-full items-center justify-center gap-2 rounded-full border border-[#dce1d1] px-4 py-3 text-sm font-semibold text-[#3f4a24] transition hover:bg-[#edf0e4]"
                 >
-                  <LogOut size={15} />
+                  <LogOut size={16} />
                   Logout
                 </button>
               </div>
@@ -226,6 +307,7 @@ export default function Header() {
                 >
                   Login
                 </Link>
+
                 <Link
                   href="/register"
                   tabIndex={open ? 0 : -1}
@@ -240,5 +322,17 @@ export default function Header() {
         </nav>
       </div>
     </header>
+  );
+}
+
+export default function Header() {
+  return (
+    <Suspense
+      fallback={
+        <header className="h-[64px] w-full border-b border-[#e5e8dc] bg-[#fffdf6] md:h-[70px]" />
+      }
+    >
+      <HeaderContent />
+    </Suspense>
   );
 }

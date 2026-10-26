@@ -1,59 +1,129 @@
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API_URL = (
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+).replace(/\/$/, "");
 
 async function adminRequest(
   path: string,
   token: string,
   options: RequestInit = {}
 ) {
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      ...options.headers,
-    },
-    cache: "no-store",
-  });
+  if (!token) {
+    throw new Error("Please log in as an admin.");
+  }
+
+  const headers = new Headers(options.headers);
+  headers.set("Authorization", `Bearer ${token}`);
+
+  if (
+    options.body !== undefined &&
+    !(options.body instanceof FormData) &&
+    !headers.has("Content-Type")
+  ) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      ...options,
+      headers,
+      cache: "no-store",
+    });
+  } catch {
+    throw new Error(
+      "Cannot reach the backend server. Check your API URL and connection."
+    );
+  }
 
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new Error(
+    const message =
       typeof data === "string"
         ? data
-        : data?.message || "Admin request failed"
-    );
+        : data?.message ||
+          data?.error ||
+          `Request failed with status ${response.status}.`;
+
+    throw new Error(message);
   }
 
   return data;
 }
 
 export const adminService = {
+  // Fetch all products
   getProducts: (token: string) =>
     adminRequest("/products", token),
 
-  getOrders: (token: string) =>
-    adminRequest("/admin/orders", token),
+  // Fetch one product
+  getProduct: (token: string, id: string) =>
+    adminRequest(
+      `/product/${encodeURIComponent(id)}`,
+      token
+    ),
 
+  // Add a product with an image
   addProduct: (token: string, formData: FormData) =>
     adminRequest("/product/add", token, {
       method: "POST",
       body: formData,
     }),
 
+  // Update an existing product
   updateProduct: (
     token: string,
     id: string,
     formData: FormData
   ) =>
-    adminRequest(`/product/${id}`, token, {
-      method: "PUT",
-      body: formData,
-    }),
+    adminRequest(
+      `/product/${encodeURIComponent(id)}`,
+      token,
+      {
+        method: "PUT",
+        body: formData,
+      }
+    ),
 
+  // Delete a product
+  deleteProduct: (token: string, id: string) =>
+    adminRequest(
+      `/product/${encodeURIComponent(id)}`,
+      token,
+      {
+        method: "DELETE",
+      }
+    ),
+
+  // Fetch all orders
+  getOrders: (token: string) =>
+    adminRequest("/admin/orders", token),
+
+  // Update order status
+  updateOrderStatus: (
+    token: string,
+    id: string,
+    status: "Shipped" | "Delivered"
+  ) =>
+    adminRequest(
+      `/order/status/${encodeURIComponent(id)}`,
+      token,
+      {
+        method: "PUT",
+        body: JSON.stringify({ status }),
+      }
+    ),
+
+  // Mark an order as shipped
   markOrderShipped: (token: string, id: string) =>
-    adminRequest(`/order/status/${id}`, token, {
-      method: "PUT",
-    }),
+    adminRequest(
+      `/order/status/${encodeURIComponent(id)}`,
+      token,
+      {
+        method: "PUT",
+        body: JSON.stringify({ status: "Shipped" }),
+      }
+    ),
 };
