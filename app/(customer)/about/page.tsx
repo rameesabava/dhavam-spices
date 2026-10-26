@@ -83,7 +83,7 @@ export default function AboutPage() {
         <InView className="max-w-xl space-y-4 text-lg leading-relaxed text-[#3d4733]">
           {(shown) =>
             [
-              "Dhavam Spices is a Chennai-based spice brand founded by Shiyas A. We sell premium, pure and unadulterated spices and masalas, sourced directly from the farm.",
+              "Dhavam Spices is a Chennai-based spice brand. We sell premium, pure and unadulterated spices and masalas, sourced directly from the farm.",
               "Our range covers the spices every kitchen reaches for: cardamom, pepper, cloves, cinnamon, star anise and black coffee powder. Most are available whole or as freshly ground powders, so you can cook the way you like.",
               "We make them for everyone who cooks, from a weekday chai to a festival biryani.",
             ].map((text, i) => (
