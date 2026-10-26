@@ -1,15 +1,18 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Users,
   Mail,
   Phone,
-  ShieldCheck,
   RefreshCw,
   ChevronLeft,
   ChevronRight,
+  Trash2,
+  UserRound,
+  AlertCircle,
+  CheckCircle2,
 } from "lucide-react";
 
 interface User {
@@ -27,11 +30,14 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     setLoading(true);
     setError("");
+    setSuccess("");
 
     try {
       const token = sessionStorage.getItem("token");
@@ -54,10 +60,20 @@ export default function AdminUsersPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Unable to fetch users.");
+        throw new Error(data.message || "Unable to fetch customers.");
       }
 
-      setUsers(data.users || []);
+      if (!Array.isArray(data.users)) {
+        throw new Error("Unexpected response from the server.");
+      }
+
+      // Display only normal customer accounts, not administrators.
+      // The backend should also filter using { role: "user" }.
+      const customers: User[] = data.users.filter(
+        (user: User) => user.role === "user"
+      );
+
+      setUsers(customers);
       setCurrentPage(1);
     } catch (err) {
       setError(
@@ -66,15 +82,78 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchUsers();
   }, []);
 
-  // Pagination calculations
+  useEffect(() => {
+    void fetchUsers();
+  }, [fetchUsers]);
+
+  const handleDeleteUser = async (user: User) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${user.username}?\n\nThis action cannot be undone.`
+    );
+
+    if (!confirmed) return;
+
+    setDeletingId(user._id);
+    setError("");
+    setSuccess("");
+
+    try {
+      const token = sessionStorage.getItem("token");
+
+      if (!token) {
+        throw new Error("Please log in as an administrator.");
+      }
+
+      if (!API_URL) {
+        throw new Error("Backend API URL is not configured.");
+      }
+
+      const response = await fetch(
+        `${API_URL}/admin/users/${user._id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Unable to delete customer.");
+      }
+
+      // Remove the deleted customer from the displayed list.
+      setUsers((previousUsers) =>
+        previousUsers.filter((item) => item._id !== user._id)
+      );
+
+      setSuccess(`${user.username} was deleted successfully.`);
+
+      // Move back if the current page no longer exists.
+      const remainingUsers = users.length - 1;
+      const remainingPages = Math.max(
+        1,
+        Math.ceil(remainingUsers / USERS_PER_PAGE)
+      );
+
+      setCurrentPage((page) => Math.min(page, remainingPages));
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to delete customer."
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  // Pagination
   const totalPages = Math.ceil(users.length / USERS_PER_PAGE);
   const startIndex = (currentPage - 1) * USERS_PER_PAGE;
+
   const paginatedUsers = users.slice(
     startIndex,
     startIndex + USERS_PER_PAGE
@@ -96,8 +175,8 @@ export default function AdminUsersPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f7f8f3] px-4 py-8 sm:px-6 lg:px-10">
-      <div className="mx-auto max-w-7xl">
+    <div className="min-h-screen w-full bg-[#f7f8f3] px-4 py-6 sm:px-6 sm:py-8 lg:px-10 xl:px-12">
+      <div className="mx-auto w-full max-w-[1600px]">
         {/* Page heading */}
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -106,18 +185,19 @@ export default function AdminUsersPage() {
             </p>
 
             <h1 className="text-3xl font-bold tracking-tight text-[#2f381b] sm:text-4xl">
-              Users
+              Customers
             </h1>
 
-            <p className="mt-2 text-sm text-gray-500">
-              Manage and view your registered customers.
+            <p className="mt-2 text-sm text-gray-500 sm:text-base">
+              View and manage your registered customer accounts.
             </p>
           </div>
 
           <button
-            onClick={fetchUsers}
-            disabled={loading}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#2f381b] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#46532b] disabled:opacity-60"
+            type="button"
+            onClick={() => void fetchUsers()}
+            disabled={loading || deletingId !== null}
+            className="inline-flex items-center gap-2 rounded-xl bg-[#2f381b] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#46532b] disabled:cursor-not-allowed disabled:opacity-60"
           >
             <RefreshCw
               size={16}
@@ -127,47 +207,73 @@ export default function AdminUsersPage() {
           </button>
         </div>
 
+        {/* Feedback messages */}
+        {success && (
+          <div
+            role="status"
+            className="mb-5 flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800"
+          >
+            <CheckCircle2 size={18} className="shrink-0" />
+            {success}
+          </div>
+        )}
+
+        {error && !loading && (
+          <div
+            role="alert"
+            className="mb-5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+          >
+            <AlertCircle size={18} className="mt-0.5 shrink-0" />
+            <div className="flex-1">{error}</div>
+            <button
+              type="button"
+              onClick={() => setError("")}
+              aria-label="Dismiss error"
+              className="font-semibold hover:text-red-900"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
         {/* Summary cards */}
-        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <SummaryCard
-            title="Total users"
+            title="Total customers"
             value={loading ? "—" : users.length}
             icon={<Users size={22} />}
             iconClass="bg-[#edf1e5] text-[#3f4a24]"
           />
 
           <SummaryCard
-            title="Administrators"
+            title="Current page"
             value={
-              loading
+              loading || users.length === 0
                 ? "—"
-                : users.filter((user) => user.role === "admin").length
+                : `${currentPage} of ${totalPages}`
             }
-            icon={<ShieldCheck size={22} />}
+            icon={<UserRound size={22} />}
             iconClass="bg-[#f8eee7] text-[#9a432a]"
-          />
-
-          <SummaryCard
-            title="Customers"
-            value={
-              loading
-                ? "—"
-                : users.filter((user) => user.role !== "admin").length
-            }
-            icon={<Mail size={22} />}
-            iconClass="bg-[#edf1e5] text-[#3f4a24]"
           />
         </div>
 
-        {/* Users table */}
+        {/* Customers table */}
         <div className="overflow-hidden rounded-2xl border border-[#e7e9df] bg-white shadow-sm">
-          <div className="border-b border-[#edf0e7] px-5 py-5 sm:px-7">
-            <h2 className="text-lg font-bold text-[#2f381b]">
-              Registered users
-            </h2>
-            <p className="mt-1 text-sm text-gray-500">
-              Customer account information.
-            </p>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#edf0e7] px-5 py-5 sm:px-7">
+            <div>
+              <h2 className="text-lg font-bold text-[#2f381b]">
+                Registered customers
+              </h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Customer account information and account management.
+              </p>
+            </div>
+
+            {!loading && (
+              <span className="rounded-full bg-[#edf1e5] px-3 py-1 text-xs font-semibold text-[#3f4a24]">
+                {users.length} {users.length === 1 ? "customer" : "customers"}
+              </span>
+            )}
           </div>
 
           {loading ? (
@@ -177,15 +283,22 @@ export default function AdminUsersPage() {
                   className="mx-auto mb-3 animate-spin text-[#3f4a24]"
                   size={28}
                 />
-                <p className="text-sm text-gray-500">Loading users...</p>
+                <p className="text-sm text-gray-500">
+                  Loading customers...
+                </p>
               </div>
             </div>
-          ) : error ? (
+          ) : error && users.length === 0 ? (
             <div className="px-6 py-16 text-center">
+              <AlertCircle
+                size={36}
+                className="mx-auto mb-3 text-red-400"
+              />
               <p className="font-semibold text-red-600">{error}</p>
               <button
-                onClick={fetchUsers}
-                className="mt-4 rounded-lg bg-[#2f381b] px-4 py-2 text-sm font-semibold text-white"
+                type="button"
+                onClick={() => void fetchUsers()}
+                className="mt-4 rounded-lg bg-[#2f381b] px-4 py-2 text-sm font-semibold text-white hover:bg-[#46532b]"
               >
                 Try again
               </button>
@@ -194,22 +307,25 @@ export default function AdminUsersPage() {
             <div className="px-6 py-16 text-center">
               <Users size={36} className="mx-auto mb-3 text-gray-300" />
               <p className="font-semibold text-[#2f381b]">
-                No users found
+                No customers found
               </p>
               <p className="mt-1 text-sm text-gray-500">
-                Registered accounts will appear here.
+                Registered customer accounts will appear here.
               </p>
             </div>
           ) : (
             <>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[720px] text-left">
+                <table className="w-full min-w-[850px] text-left">
                   <thead className="bg-[#f7f8f3]">
                     <tr className="text-xs uppercase tracking-wider text-gray-500">
-                      <th className="px-6 py-4 font-semibold">User</th>
+                      <th className="px-6 py-4 font-semibold">Customer</th>
                       <th className="px-6 py-4 font-semibold">Email</th>
                       <th className="px-6 py-4 font-semibold">Phone</th>
                       <th className="px-6 py-4 font-semibold">Role</th>
+                      <th className="px-6 py-4 text-right font-semibold">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
 
@@ -238,28 +354,50 @@ export default function AdminUsersPage() {
 
                         <td className="px-6 py-5 text-sm text-gray-600">
                           <span className="inline-flex items-center gap-2">
-                            <Mail size={15} className="text-gray-400" />
+                            <Mail
+                              size={15}
+                              className="shrink-0 text-gray-400"
+                            />
                             {user.email}
                           </span>
                         </td>
 
                         <td className="px-6 py-5 text-sm text-gray-600">
                           <span className="inline-flex items-center gap-2">
-                            <Phone size={15} className="text-gray-400" />
+                            <Phone
+                              size={15}
+                              className="shrink-0 text-gray-400"
+                            />
                             {user.phone}
                           </span>
                         </td>
 
                         <td className="px-6 py-5">
-                          <span
-                            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                              user.role === "admin"
-                                ? "bg-[#f8eee7] text-[#9a432a]"
-                                : "bg-[#edf1e5] text-[#3f4a24]"
-                            }`}
-                          >
-                            {user.role || "user"}
+                          <span className="inline-flex rounded-full bg-[#edf1e5] px-3 py-1 text-xs font-semibold text-[#3f4a24]">
+                            Customer
                           </span>
+                        </td>
+
+                        <td className="px-6 py-5 text-right">
+                          <button
+                            type="button"
+                            onClick={() => void handleDeleteUser(user)}
+                            disabled={deletingId !== null}
+                            aria-label={`Delete ${user.username}`}
+                            className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {deletingId === user._id ? (
+                              <RefreshCw
+                                size={15}
+                                className="animate-spin"
+                              />
+                            ) : (
+                              <Trash2 size={15} />
+                            )}
+                            {deletingId === user._id
+                              ? "Deleting..."
+                              : "Delete"}
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -278,15 +416,16 @@ export default function AdminUsersPage() {
                   <span className="font-semibold text-[#2f381b]">
                     {users.length}
                   </span>{" "}
-                  users
+                  customers
                 </p>
 
                 <div className="flex flex-wrap items-center gap-2">
                   <button
+                    type="button"
                     onClick={() =>
                       setCurrentPage((page) => Math.max(1, page - 1))
                     }
-                    disabled={currentPage === 1}
+                    disabled={currentPage === 1 || deletingId !== null}
                     aria-label="Previous page"
                     className="inline-flex items-center gap-1 rounded-lg border border-[#e1e5d8] px-3 py-2 text-sm font-medium text-[#2f381b] transition hover:bg-[#edf1e5] disabled:cursor-not-allowed disabled:opacity-40"
                   >
@@ -296,9 +435,13 @@ export default function AdminUsersPage() {
 
                   {getPageNumbers().map((page) => (
                     <button
+                      type="button"
                       key={page}
                       onClick={() => setCurrentPage(page)}
-                      aria-current={currentPage === page ? "page" : undefined}
+                      disabled={deletingId !== null}
+                      aria-current={
+                        currentPage === page ? "page" : undefined
+                      }
                       className={`h-9 min-w-9 rounded-lg px-3 text-sm font-semibold transition ${
                         currentPage === page
                           ? "bg-[#2f381b] text-white"
@@ -310,12 +453,15 @@ export default function AdminUsersPage() {
                   ))}
 
                   <button
+                    type="button"
                     onClick={() =>
                       setCurrentPage((page) =>
                         Math.min(totalPages, page + 1)
                       )
                     }
-                    disabled={currentPage === totalPages}
+                    disabled={
+                      currentPage === totalPages || deletingId !== null
+                    }
                     aria-label="Next page"
                     className="inline-flex items-center gap-1 rounded-lg border border-[#e1e5d8] px-3 py-2 text-sm font-medium text-[#2f381b] transition hover:bg-[#edf1e5] disabled:cursor-not-allowed disabled:opacity-40"
                   >
@@ -344,7 +490,7 @@ function SummaryCard({
   iconClass: string;
 }) {
   return (
-    <div className="rounded-2xl border border-[#e7e9df] bg-white p-5">
+    <div className="rounded-2xl border border-[#e7e9df] bg-white p-5 shadow-sm">
       <div className="flex items-center gap-3">
         <div className={`rounded-xl p-3 ${iconClass}`}>{icon}</div>
         <div>
