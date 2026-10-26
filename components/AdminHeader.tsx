@@ -204,16 +204,7 @@ function AdminHeaderContent() {
                   <UserCircle size={17} />
                   Dashboard
                 </Link>
-
-                <Link
-                  href="/admin/settings"
-                  onClick={() => setProfileOpen(false)}
-                  className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[#525744] transition hover:bg-[#f4f5ef]"
-                >
-                  <Settings size={17} />
-                  Settings
-                </Link>
-
+                
                 <button
                   type="button"
                   onClick={handleLogout}
