@@ -1,15 +1,14 @@
-
-import AdminHeader from "@/components/AdminHeader";
+import { ReactNode } from "react";
+import ProtectedRoute from "@/components/protectedRoute";
 
 export default function AdminLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: {
+  children: ReactNode;
+}) {
   return (
-    <div className="min-h-screen bg-[#f7f8f3]">
-      <AdminHeader />
-      <main>{children}</main>
-    </div>
+    <ProtectedRoute allowedRoles={["admin"]}>
+      {children}
+    </ProtectedRoute>
   );
 }
