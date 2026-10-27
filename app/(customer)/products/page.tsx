@@ -365,14 +365,30 @@ async function addToCart(product: Product) {
                       </button>
 
                       {/* Order now */}
-                      <Link
-                        href={`/order?product=${product._id}&size=${encodeURIComponent(
-                          selectedSizes[product._id] ?? ""
-                        )}`}
-                        className="mt-3 inline-flex justify-center rounded-full border border-[#3f4a24] px-5 py-2.5 text-sm font-semibold text-[#3f4a24] transition-colors hover:bg-[#f3f5ed]"
-                      >
-                        Order Now
-                      </Link>
+                     
+<button
+  type="button"
+  onClick={() => {
+    const token = sessionStorage.getItem("token");
+
+    const orderUrl = `/order?product=${product._id}&size=${encodeURIComponent(
+      selectedSizes[product._id] ?? ""
+    )}`;
+
+    if (!token) {
+      window.location.href = `/login?redirect=${encodeURIComponent(
+        orderUrl
+      )}`;
+      return;
+    }
+
+    window.location.href = orderUrl;
+  }}
+  className="mt-3 inline-flex w-full justify-center rounded-full border border-[#3f4a24] px-5 py-2.5 text-sm font-semibold text-[#3f4a24] transition-colors hover:bg-[#f3f5ed]"
+>
+  Order Now
+</button>
+
                     </div>
                   </article>
                 );

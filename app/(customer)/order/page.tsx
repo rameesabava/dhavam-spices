@@ -32,15 +32,31 @@ type CartItem = OrderItem & {
 };
 
 function parseSizes(value: Product["sizes"]): string[] {
-  if (Array.isArray(value)) return value.map(String);
+  if (Array.isArray(value)) {
+    return value
+      .map(String)
+      .map((size) => size.trim())
+      .filter(Boolean);
+  }
 
   if (typeof value === "string" && value.trim()) {
     try {
       const parsed = JSON.parse(value);
-      if (Array.isArray(parsed)) return parsed.map(String);
+
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map(String)
+          .map((size) => size.trim())
+          .filter(Boolean);
+      }
     } catch {
-      return value.split(",").map((s) => s.trim()).filter(Boolean);
+      // Fall back to comma-separated sizes.
     }
+
+    return value
+      .split(",")
+      .map((size) => size.trim())
+      .filter(Boolean);
   }
 
   return [];
@@ -49,6 +65,7 @@ function parseSizes(value: Product["sizes"]): string[] {
 export default function OrderPage() {
   const router = useRouter();
 
+  const [authorized, setAuthorized] = useState(false);
   const [product, setProduct] = useState<Product | null>(null);
   const [items, setItems] = useState<OrderItem[]>([]);
   const [selectedSize, setSelectedSize] = useState("");
@@ -65,30 +82,47 @@ export default function OrderPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  // Require login before loading the checkout page.
   useEffect(() => {
-    async function initialize() {
-      try {
-        const token = sessionStorage.getItem("token");
-        if (!token) {
-          throw new Error("Please log in before placing an order.");
-        }
+    let active = true;
 
+    async function initialize() {
+      const token = sessionStorage.getItem("token");
+
+      if (!token) {
+        const currentUrl =
+          window.location.pathname + window.location.search;
+
+        router.replace(
+          `/login?redirect=${encodeURIComponent(currentUrl)}`
+        );
+
+        return;
+      }
+
+      try {
         const params = new URLSearchParams(window.location.search);
         const productId = params.get("product");
         const requestedSize = params.get("size") || "";
         const cartCheckout = params.get("from") === "cart";
 
+        if (!active) return;
+
+        setAuthorized(true);
         setFromCart(cartCheckout);
 
         if (cartCheckout) {
           const data: any = await shopService.getCart(token);
+
           const cart: CartItem[] = Array.isArray(data)
             ? data
-            : data.items ?? [];
+            : data?.items ?? [];
 
           if (!cart.length) {
             throw new Error("Your cart is empty.");
           }
+
+          if (!active) return;
 
           setItems(
             cart.map((item) => ({
@@ -100,27 +134,33 @@ export default function OrderPage() {
             }))
           );
         } else if (productId) {
-          const data: any = await getProducts(token);
+          // Product viewing is public; checkout remains protected.
+          const data: any = await getProducts();
+
           const products: Product[] = Array.isArray(data)
             ? data
-            : data.products ?? [];
+            : data?.products ?? [];
 
           const selected = products.find(
-            (p) => p._id === productId
+            (item) => item._id === productId
           );
 
           if (!selected) {
             throw new Error("Product not found.");
           }
 
+          const sizes = parseSizes(selected.sizes);
+
+          if (!active) return;
+
           setProduct(selected);
 
-          const sizes = parseSizes(selected.sizes);
           const size = sizes.includes(requestedSize)
             ? requestedSize
             : sizes[0] ?? "";
 
           setSelectedSize(size);
+
           setItems([
             {
               productId: selected._id,
@@ -136,21 +176,36 @@ export default function OrderPage() {
           );
         }
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Unable to load checkout");
+        if (!active) return;
+
+        setError(
+          e instanceof Error
+            ? e.message
+            : "Unable to load checkout."
+        );
       } finally {
-        setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       }
     }
 
     initialize();
-  }, []);
+
+    return () => {
+      active = false;
+    };
+  }, [router]);
 
   function changeSize(size: string) {
     setSelectedSize(size);
 
     if (product) {
       setItems((previous) =>
-        previous.map((item) => ({ ...item, size }))
+        previous.map((item) => ({
+          ...item,
+          size,
+        }))
       );
     }
   }
@@ -159,8 +214,15 @@ export default function OrderPage() {
     e.preventDefault();
 
     const token = sessionStorage.getItem("token");
+
     if (!token) {
-      setError("Please log in before placing an order.");
+      const currentUrl =
+        window.location.pathname + window.location.search;
+
+      router.replace(
+        `/login?redirect=${encodeURIComponent(currentUrl)}`
+      );
+
       return;
     }
 
@@ -176,7 +238,13 @@ export default function OrderPage() {
 
     if (
       items.length === 0 ||
-      items.some((item) => !item.size || !item.productId)
+      items.some(
+        (item) =>
+          !item.productId ||
+          !item.size ||
+          !Number.isInteger(item.quantity) ||
+          item.quantity < 1
+      )
     ) {
       setError("Please select a valid product size.");
       return;
@@ -195,38 +263,58 @@ export default function OrderPage() {
         paymentMethod,
       });
 
+      let confirmation =
+        "Your order has been placed successfully!";
+
       if (fromCart) {
         try {
           await shopService.clearCart(token);
         } catch {
-          // The order was placed; report cart cleanup separately.
+          confirmation +=
+            " Your order was placed, but the cart could not be cleared.";
         }
       }
 
-      setSuccess("Your order has been placed successfully!");
+      setSuccess(confirmation);
       setItems([]);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to place order");
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Failed to place order."
+      );
     } finally {
       setSubmitting(false);
     }
   }
 
-  if (loading) {
-    return <p className="p-10 text-center">Loading checkout...</p>;
+  if (loading || !authorized) {
+    return (
+      <p className="p-10 text-center text-[#566049]">
+        {authorized ? "Loading checkout..." : "Checking login..."}
+      </p>
+    );
   }
 
   if (success) {
     return (
       <main className="mx-auto max-w-xl px-4 py-20 text-center">
-        <div className="rounded-2xl border border-[#dfe3d0] p-10">
-          <h1 className="text-3xl font-bold text-[#2f381b]">
+        <div className="rounded-2xl border border-[#dfe3d0] bg-white p-10">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#e6ebdc] text-3xl text-[#3f4a24]">
+            ✓
+          </div>
+
+          <h1 className="mt-5 text-3xl font-bold text-[#2f381b]">
             Order Confirmed!
           </h1>
-          <p className="mt-4 text-[#566049]">{success}</p>
+
+          <p className="mt-4 leading-relaxed text-[#566049]">
+            {success}
+          </p>
+
           <Link
             href="/products"
-            className="mt-7 inline-block rounded-full bg-[#3f4a24] px-6 py-3 font-semibold text-white"
+            className="mt-7 inline-block rounded-full bg-[#3f4a24] px-6 py-3 font-semibold text-white transition hover:bg-[#2f381b]"
           >
             Continue Shopping
           </Link>
@@ -237,124 +325,182 @@ export default function OrderPage() {
 
   return (
     <main className="mx-auto max-w-[1000px] px-4 py-12 md:px-6">
-      <h1 className="mb-8 text-4xl font-bold text-[#2f381b]">
-        Checkout
-      </h1>
+      <div className="mb-8">
+        <p className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-[#9a432a]">
+          Dhavam Spices
+        </p>
+
+        <h1 className="text-3xl font-bold text-[#2f381b] sm:text-4xl">
+          Checkout
+        </h1>
+
+        <p className="mt-2 text-[#566049]">
+          Confirm your products and enter your delivery details.
+        </p>
+      </div>
 
       {error && (
-        <p role="alert" className="mb-6 rounded-lg bg-red-50 p-4 text-red-700">
+        <div
+          role="alert"
+          className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+        >
           {error}
-        </p>
+        </div>
       )}
 
-      <div className="grid gap-8 md:grid-cols-2">
-        <section className="rounded-2xl border border-[#dfe3d0] p-6">
+      <div className="grid items-start gap-8 md:grid-cols-2">
+        {/* Order summary */}
+        <section className="rounded-2xl border border-[#dfe3d0] bg-white p-5 sm:p-6">
           <h2 className="mb-5 text-xl font-semibold text-[#2f381b]">
             Order Summary
           </h2>
 
           {product && (
             <div className="mb-5">
-              <label className="mb-2 block text-sm font-medium text-[#3f4a24]">
+              <label
+                htmlFor="product-size"
+                className="mb-2 block text-sm font-medium text-[#3f4a24]"
+              >
                 Select size
               </label>
+
               <select
+                id="product-size"
                 value={selectedSize}
                 onChange={(e) => changeSize(e.target.value)}
-                className="w-full rounded-lg border border-[#dfe3d0] p-3"
+                required
+                className="w-full rounded-lg border border-[#dfe3d0] bg-white p-3 outline-none focus:border-[#3f4a24] focus:ring-2 focus:ring-[#3f4a24]/20"
               >
+                <option value="" disabled>
+                  Choose a size
+                </option>
+
                 {parseSizes(product.sizes).map((size) => (
-                  <option key={size} value={size}>{size}</option>
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
                 ))}
               </select>
+
+              {parseSizes(product.sizes).length === 0 && (
+                <p className="mt-2 text-sm text-red-600">
+                  No sizes are available for this product. Please contact us.
+                </p>
+              )}
             </div>
           )}
 
-          <div className="space-y-4">
-            {items.map((item, index) => (
-              <div
-                key={`${item.productId}-${item.size}-${index}`}
-                className="flex items-center gap-4 border-b border-[#dfe3d0] pb-4"
-              >
-                <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-[#e6ebdc]">
-                  {item.productImage && (
-                    <Image
-                      src={`${API_URL}/uploads/${item.productImage}`}
-                      alt={item.productName}
-                      fill
-                      unoptimized
-                      sizes="80px"
-                      className="object-cover"
-                    />
-                  )}
-                </div>
+          {items.length > 0 ? (
+            <div className="space-y-4">
+              {items.map((item, index) => (
+                <div
+                  key={`${item.productId}-${item.size}-${index}`}
+                  className="flex items-center gap-4 border-b border-[#dfe3d0] pb-4 last:border-b-0"
+                >
+                  <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-[#e6ebdc]">
+                    {item.productImage && (
+                      <Image
+                        src={`${API_URL}/uploads/${item.productImage}`}
+                        alt={item.productName}
+                        fill
+                        unoptimized
+                        sizes="80px"
+                        className="object-cover"
+                      />
+                    )}
+                  </div>
 
-                <div>
-                  <h3 className="font-semibold text-[#2f381b]">
-                    {item.productName}
-                  </h3>
-                  <p className="text-sm text-[#566049]">
-                    Size: {item.size}
-                  </p>
-                  <p className="text-sm text-[#566049]">
-                    Quantity: {item.quantity}
-                  </p>
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-[#2f381b]">
+                      {item.productName}
+                    </h3>
+
+                    <p className="mt-1 text-sm text-[#566049]">
+                      Size: {item.size}
+                    </p>
+
+                    <p className="text-sm text-[#566049]">
+                      Quantity: {item.quantity}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+          ) : (
+            <p className="py-4 text-sm text-[#566049]">
+              No items available to display.
+            </p>
+          )}
+
+          <div className="mt-5 rounded-xl bg-[#f3f5ed] p-4">
+            <p className="text-sm leading-relaxed text-[#566049]">
+              Product prices are not displayed because your current
+              product schema does not include a price field. Your order
+              can be confirmed according to your existing backend flow.
+            </p>
           </div>
-
-          <p className="mt-5 text-sm text-[#566049]">
-            Product prices are not included because the current backend
-            product schema has no price field.
-          </p>
         </section>
 
+        {/* Delivery form */}
         <form
           onSubmit={submitOrder}
-          className="space-y-5 rounded-2xl border border-[#dfe3d0] p-6"
+          className="space-y-5 rounded-2xl border border-[#dfe3d0] bg-white p-5 sm:p-6"
         >
           <h2 className="text-xl font-semibold text-[#2f381b]">
             Delivery Details
           </h2>
 
           <div>
-            <label htmlFor="username" className="mb-2 block text-sm font-medium">
+            <label
+              htmlFor="username"
+              className="mb-2 block text-sm font-medium text-[#3f4a24]"
+            >
               Full Name
             </label>
+
             <input
               id="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
               autoComplete="name"
-              className="w-full rounded-lg border border-[#dfe3d0] p-3"
+              className="w-full rounded-lg border border-[#dfe3d0] p-3 outline-none focus:border-[#3f4a24] focus:ring-2 focus:ring-[#3f4a24]/20"
               placeholder="Enter your full name"
             />
           </div>
 
           <div>
-            <label htmlFor="phone" className="mb-2 block text-sm font-medium">
+            <label
+              htmlFor="phone"
+              className="mb-2 block text-sm font-medium text-[#3f4a24]"
+            >
               Phone Number
             </label>
+
             <input
               id="phone"
               type="tel"
               inputMode="numeric"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) =>
+                setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))
+              }
               required
               autoComplete="tel"
               maxLength={10}
-              className="w-full rounded-lg border border-[#dfe3d0] p-3"
+              className="w-full rounded-lg border border-[#dfe3d0] p-3 outline-none focus:border-[#3f4a24] focus:ring-2 focus:ring-[#3f4a24]/20"
               placeholder="10-digit phone number"
             />
           </div>
 
           <div>
-            <label htmlFor="address" className="mb-2 block text-sm font-medium">
+            <label
+              htmlFor="address"
+              className="mb-2 block text-sm font-medium text-[#3f4a24]"
+            >
               Delivery Address
             </label>
+
             <textarea
               id="address"
               value={address}
@@ -362,36 +508,46 @@ export default function OrderPage() {
               required
               rows={4}
               autoComplete="street-address"
-              className="w-full rounded-lg border border-[#dfe3d0] p-3"
+              className="w-full resize-y rounded-lg border border-[#dfe3d0] p-3 outline-none focus:border-[#3f4a24] focus:ring-2 focus:ring-[#3f4a24]/20"
               placeholder="House name, street, city, PIN code"
             />
           </div>
 
           <div>
-            <label htmlFor="payment" className="mb-2 block text-sm font-medium">
+            <label
+              htmlFor="payment"
+              className="mb-2 block text-sm font-medium text-[#3f4a24]"
+            >
               Payment Method
             </label>
+
             <select
               id="payment"
               value={paymentMethod}
               onChange={(e) => setPaymentMethod(e.target.value)}
-              className="w-full rounded-lg border border-[#dfe3d0] p-3"
+              className="w-full rounded-lg border border-[#dfe3d0] bg-white p-3 outline-none focus:border-[#3f4a24] focus:ring-2 focus:ring-[#3f4a24]/20"
             >
-              <option value="Cash on Delivery">Cash on Delivery</option>
+              <option value="Cash on Delivery">
+                Cash on Delivery
+              </option>
             </select>
           </div>
 
           <button
             type="submit"
-            disabled={submitting || items.length === 0}
-            className="w-full rounded-full bg-[#3f4a24] px-6 py-3 font-semibold text-white hover:bg-[#2f381b] disabled:opacity-50"
+            disabled={
+              submitting ||
+              items.length === 0 ||
+              items.some((item) => !item.size)
+            }
+            className="w-full rounded-full bg-[#3f4a24] px-6 py-3 font-semibold text-white transition hover:bg-[#2f381b] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {submitting ? "Placing Order..." : "Place Order"}
           </button>
 
           <Link
             href="/cart"
-            className="block text-center text-sm font-medium text-[#3f4a24] underline"
+            className="block text-center text-sm font-medium text-[#3f4a24] underline underline-offset-4"
           >
             Back to Cart
           </Link>
