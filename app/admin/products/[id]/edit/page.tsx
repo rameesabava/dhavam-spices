@@ -6,7 +6,9 @@ export default function EditProductPage() {
     <Suspense
       fallback={
         <div className="flex min-h-[300px] items-center justify-center">
-          <p className="text-sm text-gray-500">Loading edit product...</p>
+          <p className="text-sm text-gray-500">
+            Loading edit product...
+          </p>
         </div>
       }
     >
