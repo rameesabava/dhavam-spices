@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
 import ProtectedRoute from "@/components/protectedRoute";
+import AdminHeader from "@/components/AdminHeader";
 
 export default function AdminLayout({
   children,
@@ -8,6 +9,7 @@ export default function AdminLayout({
 }) {
   return (
     <ProtectedRoute allowedRoles={["admin"]}>
+      <AdminHeader/>
       {children}
     </ProtectedRoute>
   );
