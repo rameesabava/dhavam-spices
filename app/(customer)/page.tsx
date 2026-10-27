@@ -4,7 +4,7 @@ import Reveal from "@/components/Reveal";
 import StarMark from "@/components/StarMark";
 import { waLink } from "@/lib/site";
 
-const HERO_IMG = "/images/hero-banner.jpg";
+const HERO_IMG = "/images/hero-banner.png";
 
 const WHY = [
   {
@@ -104,7 +104,6 @@ export default function Home() {
           className="absolute inset-0 -z-10 bg-gradient-to-t from-[#1f2612]/85 via-[#1f2612]/20 to-[#1f2612]/30"
         />
 
-        <StarMark className="pointer-events-none absolute -right-24 -top-20 -z-10 size-64 text-white opacity-[0.08] motion-safe:animate-[spin_140s_linear_infinite] motion-reduce:animate-none sm:-right-32 sm:-top-32 sm:size-96 lg:size-[520px]" />
 
         <div className="relative mx-auto w-full max-w-[1200px] px-5 pb-12 pt-32 sm:px-6 sm:pb-16 md:pb-20 lg:px-8 lg:pb-24">
           <Reveal>
