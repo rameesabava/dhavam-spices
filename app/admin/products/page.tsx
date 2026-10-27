@@ -11,9 +11,7 @@ export default function AdminProductsPage() {
     <div className="w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-10 xl:px-12">
       <div className="mx-auto w-full max-w-[1600px]">
         <div className="mb-6 sm:mb-8">
-         
         </div>
-
         <ProductsTable />
       </div>
     </div>
