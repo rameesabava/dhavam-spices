@@ -1,28 +1,31 @@
 
 import { apiRequest } from "./api";
 
-export function getProducts(token: string) {
+// Public: anyone can view products
+export function getProducts() {
   return apiRequest("/products", {
     method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
   });
 }
 
-
+// Get one product
 export function getProductById(
   id: string,
-  token: string
+  token?: string
 ) {
   return apiRequest(`/product/${id}`, {
     method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    ...(token
+      ? {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      : {}),
   });
 }
 
+// Admin: add a product
 export function addProduct(
   formData: FormData,
   token: string
@@ -36,6 +39,7 @@ export function addProduct(
   });
 }
 
+// Admin: update a product
 export function updateProduct(
   id: string,
   formData: FormData,

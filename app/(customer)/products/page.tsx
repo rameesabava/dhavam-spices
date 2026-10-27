@@ -78,109 +78,108 @@ export default function ProductsPage() {
   const [notification, setNotification] =
     useState<Notification | null>(null);
 
-  useEffect(() => {
-    let active = true;
+ 
+useEffect(() => {
+  let active = true;
 
-    async function loadProducts() {
-      try {
-        const token = sessionStorage.getItem("token");
-
-        if (!token) {
-          throw new Error("Please log in to view products.");
-        }
-
-        const data: any = await getProducts(token);
-
-        const list: Product[] = Array.isArray(data)
-          ? data
-          : data.products ?? [];
-
-        if (!active) return;
-
-        setProducts(list);
-
-        const initial: Record<string, string> = {};
-
-        list.forEach((product) => {
-          const sizes = getProductSizes(product);
-          initial[product._id] = sizes[0] ?? "";
-        });
-
-        setSelectedSizes(initial);
-      } catch (e) {
-        if (!active) return;
-
-        setNotification({
-          type: "error",
-          message:
-            e instanceof Error
-              ? e.message
-              : "Unable to load products.",
-        });
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
-    }
-
-    loadProducts();
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  async function addToCart(product: Product) {
-    const token = sessionStorage.getItem("token");
-    const size = selectedSizes[product._id];
-
-    if (!token) {
-      setNotification({
-        type: "error",
-        message: "Please log in before adding products to your cart.",
-      });
-      return;
-    }
-
-    if (!size) {
-      setNotification({
-        type: "error",
-        message: "Please select a size first.",
-      });
-      return;
-    }
-
+  async function loadProducts() {
     try {
-      setBusy(product._id);
-      setNotification(null);
+      // No login required to view products
+      const data: any = await getProducts();
 
-      const result = await shopService.addToCart(
-        token,
-        product._id,
-        size
-      );
+      const list: Product[] = Array.isArray(data)
+        ? data
+        : data.products ?? [];
 
-      const isUpdated = result?.message === "Cart quantity updated";
+      if (!active) return;
 
-      setNotification({
-        type: "success",
-        message: isUpdated
-          ? `${product.name} (${size}) quantity updated in your cart.`
-          : `${product.name} (${size}) added to your cart.`,
+      setProducts(list);
+
+      const initial: Record<string, string> = {};
+
+      list.forEach((product) => {
+        const sizes = getProductSizes(product);
+        initial[product._id] = sizes[0] ?? "";
       });
+
+      setSelectedSizes(initial);
     } catch (e) {
+      if (!active) return;
+
       setNotification({
         type: "error",
         message:
           e instanceof Error
             ? e.message
-            : "Could not add the item to your cart.",
+            : "Unable to load products.",
       });
     } finally {
-      setBusy("");
+      if (active) {
+        setLoading(false);
+      }
     }
   }
+
+  loadProducts();
+
+  return () => {
+    active = false;
+  };
+}, []);
+
+
+  
+async function addToCart(product: Product) {
+  const token = sessionStorage.getItem("token");
+  const size = selectedSizes[product._id];
+
+  // Require login only for cart operations
+  if (!token) {
+    window.location.href =
+      `/login?redirect=${encodeURIComponent("/products")}`;
+    return;
+  }
+
+  if (!size) {
+    setNotification({
+      type: "error",
+      message: "Please select a size first.",
+    });
+    return;
+  }
+
+  try {
+    setBusy(product._id);
+    setNotification(null);
+
+    const result = await shopService.addToCart(
+      token,
+      product._id,
+      size
+    );
+
+    const isUpdated =
+      result?.message === "Cart quantity updated";
+
+    setNotification({
+      type: "success",
+      message: isUpdated
+        ? `${product.name} (${size}) quantity updated in your cart.`
+        : `${product.name} (${size}) added to your cart.`,
+    });
+  } catch (e) {
+    setNotification({
+      type: "error",
+      message:
+        e instanceof Error
+          ? e.message
+          : "Could not add the item to your cart.",
+    });
+  } finally {
+    setBusy("");
+  }
+}
+
 
   useEffect(() => {
     if (!notification) return;
