@@ -13,7 +13,7 @@ export default function RegisterPage() {
     <section className="grid min-h-[calc(100vh-72px)] lg:grid-cols-[1fr_1.05fr]">
       {/* Brand panel */}
       <div className="relative hidden overflow-hidden bg-[#2f381b] lg:block">
-        <Image src="/images/kitchen.jpg" alt="" fill sizes="50vw" priority className="object-cover opacity-40" />
+        <Image src="/images/reg.png" alt="" fill sizes="50vw" priority className="object-cover opacity-40" />
         <div className="absolute inset-0 bg-gradient-to-b from-[#2f381b] via-[#2f381b]/80 to-[#2f381b]/30" />
         <div className="relative p-12 xl:p-16">
           <div className="sticky top-28">
