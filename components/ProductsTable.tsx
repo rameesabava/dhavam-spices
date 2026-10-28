@@ -4,7 +4,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Pencil, Trash2, Search, RefreshCw } from "lucide-react";
+import {
+  Pencil,
+  Trash2,
+  Search,
+  RefreshCw,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+} from "lucide-react";
 import { adminService } from "@/app/services/adminService";
 
 type Product = {
@@ -18,7 +27,9 @@ type Product = {
 
 const API_URL = (
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
-).replace(/\/$/, "");
+).replace(/\/+$/, "");
+
+const PAGE_SIZE = 8;
 
 function formatSizes(value?: Product["sizes"]) {
   if (Array.isArray(value)) {
@@ -46,11 +57,11 @@ export default function ProductsTable() {
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
   const [group, setGroup] = useState("all");
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // Fetch products from the backend.
   const loadProducts = useCallback(async () => {
     try {
       setLoading(true);
@@ -75,11 +86,10 @@ export default function ProductsTable() {
       }
 
       setProducts(productList);
+      setPage(1);
     } catch (e) {
       setError(
-        e instanceof Error
-          ? e.message
-          : "Unable to fetch products."
+        e instanceof Error ? e.message : "Unable to fetch products."
       );
     } finally {
       setLoading(false);
@@ -90,7 +100,7 @@ export default function ProductsTable() {
     void loadProducts();
   }, [loadProducts]);
 
-  // Search and category filtering.
+  // Filter before calculating pagination.
   const filteredProducts = useMemo(() => {
     const query = search.trim().toLowerCase();
 
@@ -107,7 +117,40 @@ export default function ProductsTable() {
     });
   }, [products, search, group]);
 
-  // Delete a product after confirmation.
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredProducts.length / PAGE_SIZE)
+  );
+
+  // Keep the current page valid if products are deleted or filters change.
+  const currentPage = Math.min(page, totalPages);
+
+  const paginatedProducts = useMemo(() => {
+    const startIndex = (currentPage - 1) * PAGE_SIZE;
+
+    return filteredProducts.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [filteredProducts, currentPage]);
+
+  const startItem =
+    filteredProducts.length === 0
+      ? 0
+      : (currentPage - 1) * PAGE_SIZE + 1;
+
+  const endItem = Math.min(
+    currentPage * PAGE_SIZE,
+    filteredProducts.length
+  );
+
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    setPage(1);
+  };
+
+  const handleGroupChange = (value: string) => {
+    setGroup(value);
+    setPage(1);
+  };
+
   const handleDelete = async (product: Product) => {
     const confirmed = window.confirm(
       `Are you sure you want to delete "${product.name}"?\n\nThis action cannot be undone.`
@@ -127,21 +170,70 @@ export default function ProductsTable() {
 
       await adminService.deleteProduct(token, product._id);
 
-      // Remove the product from the UI after successful deletion.
-      setProducts((currentProducts) =>
-        currentProducts.filter((item) => item._id !== product._id)
+      const remainingProducts = products.filter(
+        (item) => item._id !== product._id
       );
+
+      setProducts(remainingProducts);
+
+      const remainingFiltered = remainingProducts.filter((item) => {
+        const query = search.trim().toLowerCase();
+
+        const matchesSearch =
+          (item.name || "").toLowerCase().includes(query) ||
+          (item.description || "").toLowerCase().includes(query);
+
+        const matchesGroup =
+          group === "all" ||
+          (item.group || "whole").toLowerCase() === group;
+
+        return matchesSearch && matchesGroup;
+      });
+
+      const newTotalPages = Math.max(
+        1,
+        Math.ceil(remainingFiltered.length / PAGE_SIZE)
+      );
+
+      setPage((previous) => Math.min(previous, newTotalPages));
     } catch (e) {
       const message =
-        e instanceof Error
-          ? e.message
-          : "Unable to delete product.";
+        e instanceof Error ? e.message : "Unable to delete product.";
 
       window.alert(message);
     } finally {
       setDeletingId(null);
     }
   };
+
+  // Compact page-number list with ellipses for large inventories.
+  const pageNumbers = useMemo(() => {
+    const pages = new Set<number>([1, totalPages]);
+
+    for (
+      let number = Math.max(1, currentPage - 1);
+      number <= Math.min(totalPages, currentPage + 1);
+      number++
+    ) {
+      pages.add(number);
+    }
+
+    const sorted = Array.from(pages).sort((a, b) => a - b);
+    const result: (number | string)[] = [];
+
+    sorted.forEach((number, index) => {
+      if (index > 0 && number - sorted[index - 1] > 1) {
+        result.push(`ellipsis-${number}`);
+      }
+
+      result.push(number);
+    });
+
+    return result;
+  }, [currentPage, totalPages]);
+
+  const paginationButton =
+    "inline-flex h-9 min-w-9 items-center justify-center rounded-lg border border-[#dfe3d0] bg-white px-2 text-sm font-medium text-[#3f4a24] transition hover:bg-[#edf0e4] disabled:cursor-not-allowed disabled:opacity-40";
 
   return (
     <section className="mx-auto w-full">
@@ -176,7 +268,7 @@ export default function ProductsTable() {
           <input
             type="search"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             placeholder="Search products..."
             aria-label="Search products"
             className="w-full rounded-xl border border-[#dfe3d0] bg-white py-3 pl-11 pr-4 outline-none transition focus:border-[#9a432a] focus:ring-2 focus:ring-[#9a432a]/20"
@@ -185,7 +277,7 @@ export default function ProductsTable() {
 
         <select
           value={group}
-          onChange={(e) => setGroup(e.target.value)}
+          onChange={(e) => handleGroupChange(e.target.value)}
           aria-label="Filter by category"
           className="rounded-xl border border-[#dfe3d0] bg-white px-4 py-3 text-sm text-[#3f4a24] outline-none focus:ring-2 focus:ring-[#9a432a]/30"
         >
@@ -217,14 +309,13 @@ export default function ProductsTable() {
         </button>
       </div>
 
-      {/* Loading */}
+      {/* Loading, error, empty state, or product cards */}
       {loading ? (
         <div className="rounded-2xl border border-[#e3e8dc] bg-white p-10 text-center text-[#566049]">
           <RefreshCw size={24} className="mx-auto mb-3 animate-spin" />
           Loading products...
         </div>
       ) : error ? (
-        /* Error */
         <div className="rounded-2xl border border-red-200 bg-white p-6">
           <p className="font-medium text-red-600">{error}</p>
 
@@ -237,7 +328,6 @@ export default function ProductsTable() {
           </button>
         </div>
       ) : filteredProducts.length === 0 ? (
-        /* Empty state */
         <div className="rounded-2xl border border-[#e3e8dc] bg-white p-10 text-center">
           <p className="font-semibold text-[#3f4a24]">
             {search || group !== "all"
@@ -261,86 +351,182 @@ export default function ProductsTable() {
           )}
         </div>
       ) : (
-        /* Product cards */
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {filteredProducts.map((product) => (
-            <article
-              key={product._id}
-              className="overflow-hidden rounded-2xl border border-[#e3e8dc] bg-white transition duration-300 hover:-translate-y-0.5 hover:shadow-lg"
-            >
-              {/* Product image */}
-              <div className="relative aspect-[4/3] bg-[#e6ebdc]">
-                {product.image ? (
-                  <Image
-                    src={`${API_URL}/uploads/${product.image}`}
-                    alt={product.name}
-                    fill
-                    unoptimized
-                    sizes="(min-width:1280px) 33vw, (min-width:640px) 50vw, 100vw"
-                    className="object-contain p-3"
-                  />
-                ) : (
-                  <div className="flex h-full items-center justify-center text-sm text-[#566049]">
-                    No product image
+        <>
+          {/* Product cards */}
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {paginatedProducts.map((product) => (
+              <article
+                key={product._id}
+                className="overflow-hidden rounded-2xl border border-[#e3e8dc] bg-white transition duration-300 hover:-translate-y-0.5 hover:shadow-lg"
+              >
+                {/* Product image */}
+                <div className="relative aspect-[4/3] bg-[#e6ebdc]">
+                  {product.image ? (
+                    <Image
+                      src={`${API_URL}/uploads/${product.image}`}
+                      alt={product.name}
+                      fill
+                      unoptimized
+                      sizes="(min-width:1280px) 33vw, (min-width:640px) 50vw, 100vw"
+                      className="object-contain p-3"
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-sm text-[#566049]">
+                      No product image
+                    </div>
+                  )}
+
+                  <span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1 text-xs font-semibold capitalize text-[#3f4a24] shadow-sm">
+                    {product.group || "whole"}
+                  </span>
+                </div>
+
+                {/* Product details */}
+                <div className="p-4">
+                  <h2 className="text-lg font-bold text-[#2f381b]">
+                    {product.name}
+                  </h2>
+
+                  <p className="mt-2 line-clamp-2 min-h-10 text-sm leading-relaxed text-[#566049]">
+                    {product.description}
+                  </p>
+
+                  <div className="mt-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[#7a8470]">
+                      Available sizes
+                    </p>
+
+                    <p className="mt-1 text-sm text-[#3f4a24]">
+                      {formatSizes(product.sizes)}
+                    </p>
                   </div>
-                )}
 
-                <span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1 text-xs font-semibold capitalize text-[#3f4a24] shadow-sm">
-                  {product.group || "whole"}
-                </span>
-              </div>
-
-              {/* Product details */}
-              <div className="p-4">
-                <h2 className="text-lg font-bold text-[#2f381b]">
-                  {product.name}
-                </h2>
-
-                <p className="mt-2 line-clamp-2 min-h-10 text-sm leading-relaxed text-[#566049]">
-                  {product.description}
-                </p>
-
-                <div className="mt-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[#7a8470]">
-                    Available sizes
+                  <p className="mt-3 break-all text-xs text-[#7a8470]">
+                    ID: {product._id}
                   </p>
 
-                  <p className="mt-1 text-sm text-[#3f4a24]">
-                    {formatSizes(product.sizes)}
-                  </p>
+                  {/* Edit and Delete */}
+                  <div className="mt-4 flex flex-wrap justify-end gap-2 border-t border-[#e3e8dc] pt-4">
+                    <Link
+                      href={`/admin/products/${product._id}/edit`}
+                      className="inline-flex items-center gap-2 rounded-full bg-[#3f4a24] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#2f381b]"
+                    >
+                      <Pencil size={16} />
+                      Edit
+                    </Link>
+
+                    <button
+                      type="button"
+                      onClick={() => void handleDelete(product)}
+                      disabled={deletingId !== null}
+                      className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <Trash2 size={16} />
+                      {deletingId === product._id
+                        ? "Deleting..."
+                        : "Delete"}
+                    </button>
+                  </div>
                 </div>
+              </article>
+            ))}
+          </div>
 
-                <p className="mt-3 break-all text-xs text-[#7a8470]">
-                  ID: {product._id}
-                </p>
+          {/* Pagination */}
+          <div className="mt-7 flex flex-col gap-4 rounded-2xl border border-[#e3e8dc] bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-[#566049]">
+              Showing{" "}
+              <span className="font-semibold text-[#2f381b]">
+                {startItem}–{endItem}
+              </span>{" "}
+              of{" "}
+              <span className="font-semibold text-[#2f381b]">
+                {filteredProducts.length}
+              </span>{" "}
+              products
+            </p>
 
-                {/* Edit and Delete actions */}
-                <div className="mt-4 flex flex-wrap justify-end gap-2 border-t border-[#e3e8dc] pt-4">
-                  <Link
-                    href={`/admin/products/${product._id}/edit`}
-                    className="inline-flex items-center gap-2 rounded-full bg-[#3f4a24] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#2f381b]"
+            <nav
+              aria-label="Product pagination"
+              className="flex flex-wrap items-center justify-center gap-1.5"
+            >
+              <button
+                type="button"
+                aria-label="First page"
+                title="First page"
+                disabled={currentPage === 1}
+                onClick={() => setPage(1)}
+                className={paginationButton}
+              >
+                <ChevronsLeft size={17} />
+              </button>
+
+              <button
+                type="button"
+                aria-label="Previous page"
+                title="Previous page"
+                disabled={currentPage === 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className={paginationButton}
+              >
+                <ChevronLeft size={17} />
+              </button>
+
+              {pageNumbers.map((item) =>
+                typeof item === "string" ? (
+                  <span
+                    key={item}
+                    aria-hidden="true"
+                    className="flex h-9 min-w-6 items-center justify-center text-sm text-[#858a77]"
                   >
-                    <Pencil size={16} />
-                    Edit
-                  </Link>
-
+                    …
+                  </span>
+                ) : (
                   <button
+                    key={item}
                     type="button"
-                    onClick={() => void handleDelete(product)}
-                    disabled={deletingId !== null}
-                    className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    aria-label={`Page ${item}`}
+                    aria-current={
+                      item === currentPage ? "page" : undefined
+                    }
+                    onClick={() => setPage(item)}
+                    className={`h-9 min-w-9 rounded-lg border px-2 text-sm font-semibold transition ${
+                      item === currentPage
+                        ? "border-[#3f4a24] bg-[#3f4a24] text-white"
+                        : "border-[#dfe3d0] bg-white text-[#3f4a24] hover:bg-[#edf0e4]"
+                    }`}
                   >
-                    <Trash2 size={16} />
-
-                    {deletingId === product._id
-                      ? "Deleting..."
-                      : "Delete"}
+                    {item}
                   </button>
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
+                )
+              )}
+
+              <button
+                type="button"
+                aria-label="Next page"
+                title="Next page"
+                disabled={currentPage === totalPages}
+                onClick={() =>
+                  setPage((p) => Math.min(totalPages, p + 1))
+                }
+                className={paginationButton}
+              >
+                <ChevronRight size={17} />
+              </button>
+
+              <button
+                type="button"
+                aria-label="Last page"
+                title="Last page"
+                disabled={currentPage === totalPages}
+                onClick={() => setPage(totalPages)}
+                className={paginationButton}
+              >
+                <ChevronsRight size={17} />
+              </button>
+            </nav>
+          </div>
+        </>
       )}
     </section>
   );
