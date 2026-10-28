@@ -2,43 +2,25 @@
 import axios from "axios";
 
 export const api = axios.create({
-  baseURL: (
-    process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
-  ).replace(/\/$/, ""),
-});
-
-api.interceptors.request.use((config) => {
-  if (typeof window !== "undefined") {
-    const token = sessionStorage.getItem("token");
-
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-  }
-
-  return config;
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000",
+  headers: {
+    Accept: "application/json",
+  },
+  timeout: 15000,
 });
 
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     console.error("API request failed:", {
+      message: error.message,
       url: error.config?.url,
       baseURL: error.config?.baseURL,
+      method: error.config?.method,
       status: error.response?.status,
-      response: error.response?.data,
-      message: error.message,
+      responseData: error.response?.data,
     });
 
-    const data = error.response?.data;
-
-    const message =
-      (typeof data === "string" && data) ||
-      data?.message ||
-      data?.error ||
-      error.message ||
-      "Unable to complete the request.";
-
-    return Promise.reject(new Error(message));
+    return Promise.reject(error);
   }
 );

@@ -50,7 +50,7 @@ function HeaderContent() {
   const [scrolled, setScrolled] = useState(false);
   const [username, setUsername] = useState("");
 
-  // Read the logged-in username from sessionStorage.
+  // Update the username after login, logout, or profile changes.
   useEffect(() => {
     const updateUser = () => {
       setUsername(sessionStorage.getItem("username") || "");
@@ -64,7 +64,7 @@ function HeaderContent() {
     };
   }, [pathname]);
 
-  // Header shadow when scrolling.
+  // Header shadow on scroll.
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 10);
@@ -89,6 +89,7 @@ function HeaderContent() {
   const handleLogout = () => {
     sessionStorage.removeItem("token");
     sessionStorage.removeItem("username");
+    sessionStorage.removeItem("role");
 
     setUsername("");
     setOpen(false);
@@ -106,6 +107,20 @@ function HeaderContent() {
 
     return pathname === href || pathname.startsWith(`${href}/`);
   };
+
+  const accountLinkClass = (href: string) =>
+    `inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold transition ${
+      isActive(href)
+        ? "bg-[#edf0e4] text-[#3f4a24]"
+        : "text-[#3f4a24] hover:bg-[#edf0e4]"
+    }`;
+
+  const mobileAccountLinkClass = (href: string) =>
+    `flex items-center justify-between rounded-xl border px-4 py-3 text-sm font-semibold transition ${
+      isActive(href)
+        ? "border-[#cdd5bd] bg-[#edf0e4] text-[#3f4a24]"
+        : "border-[#e2e5d9] text-[#3f4a24] hover:bg-[#edf0e4]"
+    }`;
 
   return (
     <header
@@ -140,34 +155,32 @@ function HeaderContent() {
         </nav>
 
         {/* Desktop account actions */}
-        <div className="hidden shrink-0 items-center gap-2 lg:flex">
+        <div className="hidden shrink-0 items-center gap-1 lg:flex">
           {username ? (
             <>
-              <Link
-                href="/cart"
-                className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold transition ${
-                  isActive("/cart")
-                    ? "bg-[#edf0e4] text-[#3f4a24]"
-                    : "text-[#3f4a24] hover:bg-[#edf0e4]"
-                }`}
-              >
+              <Link href="/cart" className={accountLinkClass("/cart")}>
                 <ShoppingCart size={17} />
                 My Cart
               </Link>
 
               <Link
                 href="/myOrders"
-                className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold transition ${
-                  isActive("/myOrders")
-                    ? "bg-[#edf0e4] text-[#3f4a24]"
-                    : "text-[#3f4a24] hover:bg-[#edf0e4]"
-                }`}
+                className={accountLinkClass("/myOrders")}
               >
                 <Package size={17} />
                 My Orders
               </Link>
 
-              <span className="flex max-w-[130px] items-center gap-2 truncate text-sm font-medium text-[#3f4a24]">
+              {/* New profile link */}
+              <Link
+                href="/profile"
+                className={accountLinkClass("/profile")}
+              >
+                <UserRound size={17} />
+                My Profile
+              </Link>
+
+              <span className="flex max-w-[120px] items-center gap-2 truncate px-2 text-sm font-medium text-[#3f4a24]">
                 <UserRound size={17} className="shrink-0" />
                 <span className="truncate">Hi, {username}</span>
               </span>
@@ -219,7 +232,7 @@ function HeaderContent() {
         id="mobile-navigation"
         className={`overflow-hidden border-t border-[#e8eadf] bg-[#fffdf6] transition-all duration-300 ease-in-out lg:hidden ${
           open
-            ? "max-h-[650px] translate-y-0 opacity-100"
+            ? "max-h-[850px] translate-y-0 opacity-100"
             : "pointer-events-none max-h-0 -translate-y-1 opacity-0"
         }`}
         aria-hidden={!open}
@@ -259,11 +272,7 @@ function HeaderContent() {
                 <Link
                   href="/cart"
                   tabIndex={open ? 0 : -1}
-                  className={`flex items-center justify-between rounded-xl border px-4 py-3 text-sm font-semibold transition ${
-                    isActive("/cart")
-                      ? "border-[#cdd5bd] bg-[#edf0e4] text-[#3f4a24]"
-                      : "border-[#e2e5d9] text-[#3f4a24] hover:bg-[#edf0e4]"
-                  }`}
+                  className={mobileAccountLinkClass("/cart")}
                 >
                   <span className="flex items-center gap-3">
                     <ShoppingCart size={18} />
@@ -275,15 +284,24 @@ function HeaderContent() {
                 <Link
                   href="/myOrders"
                   tabIndex={open ? 0 : -1}
-                  className={`flex items-center justify-between rounded-xl border px-4 py-3 text-sm font-semibold transition ${
-                    isActive("/myOrders")
-                      ? "border-[#cdd5bd] bg-[#edf0e4] text-[#3f4a24]"
-                      : "border-[#e2e5d9] text-[#3f4a24] hover:bg-[#edf0e4]"
-                  }`}
+                  className={mobileAccountLinkClass("/myOrders")}
                 >
                   <span className="flex items-center gap-3">
                     <Package size={18} />
                     My Orders
+                  </span>
+                  <ChevronRight size={16} />
+                </Link>
+
+                {/* New mobile profile link */}
+                <Link
+                  href="/profile"
+                  tabIndex={open ? 0 : -1}
+                  className={mobileAccountLinkClass("/profile")}
+                >
+                  <span className="flex items-center gap-3">
+                    <UserRound size={18} />
+                    My Profile
                   </span>
                   <ChevronRight size={16} />
                 </Link>

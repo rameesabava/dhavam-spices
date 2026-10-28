@@ -1,6 +1,6 @@
-
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
@@ -16,29 +16,12 @@ import {
   Settings,
   UserCircle,
 } from "lucide-react";
-import Image from "next/image";
 
 const NAV_LINKS = [
-  {
-    label: "Dashboard",
-    href: "/admin",
-    icon: LayoutDashboard,
-  },
-  {
-    label: "Products",
-    href: "/admin/products",
-    icon: Package,
-  },
-  {
-    label: "Orders",
-    href: "/admin/orders",
-    icon: ShoppingBag,
-  },
-  {
-    label: "Users",
-    href: "/admin/users",
-    icon: Users,
-  },
+  { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
+  { label: "Products", href: "/admin/products", icon: Package },
+  { label: "Orders", href: "/admin/orders", icon: ShoppingBag },
+  { label: "Users", href: "/admin/users", icon: Users },
 ];
 
 function AdminHeaderContent() {
@@ -69,10 +52,7 @@ function AdminHeaderContent() {
   }, [pathname]);
 
   const isActive = (href: string) => {
-    if (href === "/admin") {
-      return pathname === "/admin";
-    }
-
+    if (href === "/admin") return pathname === "/admin";
     return pathname === href || pathname.startsWith(`${href}/`);
   };
 
@@ -94,33 +74,32 @@ function AdminHeaderContent() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-[#e7e9df] bg-white/95 backdrop-blur-xl">
       <div className="mx-auto flex h-[76px] max-w-[1600px] items-center justify-between gap-5 px-4 sm:px-6 lg:px-8">
-        {/* BRAND ICON — NO GREEN BACKGROUND */}
-        {/* BRAND ICON — IMAGE WITHOUT BACKGROUND */}
-<Link
-  href="/admin"
-  aria-label="Dhavam Spices admin dashboard"
-  className="flex shrink-0 items-center gap-3"
->
-  <div className="relative h-14 w-14 shrink-0">
-    <Image
-      src="/images/logo.png"
-      alt="Dhavam Spices logo"
-      fill
-      sizes="60px"
-      className="object-contain"
-      priority
-    />
-  </div>
+        {/* BRAND */}
+        <Link
+          href="/admin"
+          aria-label="Dhavam Spices admin dashboard"
+          className="flex shrink-0 items-center gap-3"
+        >
+          <div className="relative h-14 w-14 shrink-0">
+            <Image
+              src="/images/logo.png"
+              alt="Dhavam Spices logo"
+              fill
+              sizes="60px"
+              className="object-contain"
+              priority
+            />
+          </div>
 
-  <div className="hidden sm:block">
-    <p className="text-[17px] font-bold leading-tight tracking-tight text-[#2f381b]">
-      Dhavam Spices
-    </p>
-    <p className="mt-1 text-[10px] font-semibold uppercase tracking-[2px] text-[#8a8e7c]">
-      Admin Console
-    </p>
-  </div>
-</Link>
+          <div className="hidden sm:block">
+            <p className="text-[17px] font-bold leading-tight tracking-tight text-[#2f381b]">
+              Dhavam Spices
+            </p>
+            <p className="mt-1 text-[10px] font-semibold uppercase tracking-[2px] text-[#8a8e7c]">
+              Admin Console
+            </p>
+          </div>
+        </Link>
 
         {/* DESKTOP NAVIGATION */}
         <nav
@@ -149,7 +128,7 @@ function AdminHeaderContent() {
           })}
         </nav>
 
-        {/* DESKTOP PROFILE */}
+        {/* DESKTOP PROFILE MENU */}
         <div className="relative hidden md:block">
           <button
             type="button"
@@ -158,7 +137,7 @@ function AdminHeaderContent() {
             aria-label="Open administrator profile menu"
             className="flex items-center gap-2.5 rounded-xl p-1.5 pr-2 transition hover:bg-[#f5f6f1]"
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[#e7e9df] bg-white text-sm font-bold uppercase text-[#354020]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[#e7e9df] bg-[#f5f6f1] text-sm font-bold uppercase text-[#354020]">
               {username.charAt(0)}
             </div>
 
@@ -204,7 +183,20 @@ function AdminHeaderContent() {
                   <UserCircle size={17} />
                   Dashboard
                 </Link>
-                
+
+                <Link
+                  href="/admin/profile"
+                  onClick={() => setProfileOpen(false)}
+                  className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${
+                    isActive("/admin/profile")
+                      ? "bg-[#edf0e5] font-semibold text-[#2f381b]"
+                      : "text-[#525744] hover:bg-[#f4f5ef]"
+                  }`}
+                >
+                  <Settings size={17} />
+                  My Profile
+                </Link>
+
                 <button
                   type="button"
                   onClick={handleLogout}
@@ -262,7 +254,7 @@ function AdminHeaderContent() {
 
           {/* MOBILE PROFILE */}
           <div className="mt-4 flex items-center gap-3 border-t border-[#e8eadd] pt-4">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[#e7e9df] bg-white font-bold uppercase text-[#354020]">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#e7e9df] bg-[#f5f6f1] font-bold uppercase text-[#354020]">
               {username.charAt(0)}
             </div>
 
@@ -275,19 +267,28 @@ function AdminHeaderContent() {
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-[#9a432a] hover:bg-[#fbf0eb]"
+            <Link
+              href="/admin/profile"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold text-[#2f381b] hover:bg-[#f3f5ed]"
             >
-              <LogOut size={17} />
-              Logout
-            </button>
+              <Settings size={16} />
+              Profile
+            </Link>
           </div>
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="mt-3 flex w-full items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-[#9a432a] transition hover:bg-[#fbf0eb]"
+          >
+            <LogOut size={17} />
+            Sign out
+          </button>
         </div>
       )}
 
-      {/* SUBTLE BRAND ACCENT */}
+      {/* BRAND ACCENT */}
       <div className="h-[2px] w-full bg-gradient-to-r from-[#2f381b] via-[#87916a] to-[#9a432a]" />
     </header>
   );
