@@ -29,7 +29,7 @@ const API_URL = (
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 ).replace(/\/+$/, "");
 
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 9;
 
 function formatSizes(value?: Product["sizes"]) {
   if (Array.isArray(value)) {
