@@ -98,8 +98,8 @@ export default function Home() {
               <Reveal delay={100}>
                 <h1 className="mt-4 font-[family-name:var(--font-bricolage)] text-[clamp(2rem,8vw,3.25rem)] font-bold leading-[1.1] tracking-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)] xl:mt-[1.2vw] xl:text-[clamp(2.25rem,3.3vw,4.5rem)]">
                   Pure spices,
-                  <br className="hidden xl:block" /> straight from
-                  <br className="hidden xl:block" /> the farm.
+                  straight from
+                  the farm.
                 </h1>
               </Reveal>
 
