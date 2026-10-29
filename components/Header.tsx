@@ -86,19 +86,15 @@ function HeaderContent() {
     setOpen(false);
   }, [pathname]);
 
-  const handleLogout = () => {
-    sessionStorage.removeItem("token");
-    sessionStorage.removeItem("username");
-    sessionStorage.removeItem("role");
+ const handleLogout = () => {
+  sessionStorage.removeItem("token");
+  sessionStorage.removeItem("username");
+  sessionStorage.removeItem("role");
 
-    setUsername("");
-    setOpen(false);
+  window.dispatchEvent(new Event("authChanged"));
 
-    window.dispatchEvent(new Event("authChanged"));
-
-    router.push("/");
-    router.refresh();
-  };
+  window.location.replace("/login");
+};
 
   const isActive = (href: string) => {
     if (href === "/") {

@@ -56,20 +56,15 @@ function AdminHeaderContent() {
     return pathname === href || pathname.startsWith(`${href}/`);
   };
 
-  const handleLogout = () => {
-    sessionStorage.removeItem("token");
-    sessionStorage.removeItem("username");
-    sessionStorage.removeItem("user");
-    sessionStorage.removeItem("role");
+ const handleLogout = () => {
+  sessionStorage.removeItem("token");
+  sessionStorage.removeItem("username");
+  sessionStorage.removeItem("role");
 
-    window.dispatchEvent(new Event("authChanged"));
+  window.dispatchEvent(new Event("authChanged"));
 
-    setProfileOpen(false);
-    setMobileMenuOpen(false);
-
-    router.replace("/");
-    router.refresh();
-  };
+  window.location.replace("/login");
+};
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-[#e7e9df] bg-white/95 backdrop-blur-xl">

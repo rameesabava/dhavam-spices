@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, } from "react";
 import { loginUser } from "@/lib/login";
 
 type Values = { email: string; password: string };
@@ -45,6 +45,26 @@ export default function LoginForm() {
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+  const resetForm = () => {
+    setV({ email: "", password: "" });
+    setTouched({});
+    setSubmitted(false);
+    setShow(false);
+    setBusy(false);
+    setFormError("");
+  };
+
+  // Reset when the login page loads or is restored.
+  resetForm();
+
+  window.addEventListener("pageshow", resetForm);
+
+  return () => {
+    window.removeEventListener("pageshow", resetForm);
+  };
+}, []);
 
   const all = validate(v);
   const errors: Errors = {};
