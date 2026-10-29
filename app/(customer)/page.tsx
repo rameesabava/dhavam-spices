@@ -4,7 +4,7 @@ import Reveal from "@/components/Reveal";
 import StarMark from "@/components/StarMark";
 import { waLink } from "@/lib/site";
 
-const HERO_IMG = "/images/banner1.png";
+const HERO_IMG = "/images/banner.png";
 // Real pixel size of banner.png (from your original aspect-[1774/887])
 const IMG_W = 1774;
 const IMG_H = 887;
