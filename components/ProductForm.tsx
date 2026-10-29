@@ -16,7 +16,7 @@ const label = "mb-1.5 block text-sm font-medium text-[#2f381b]";
 const input =
   "w-full rounded-xl border border-[#cfd5bf] bg-white px-4 py-3 text-[#20261f] placeholder:text-[#9aa28c] focus:outline-none focus:ring-4 focus:ring-[#9a432a]/20";
 
-const PACK_SIZES = ["50 g", "100 g", "250 g", "500 g", "1 kg"];
+const PACK_SIZES = ["50 g", "100 g", "150 g", "250 g", "500 g", "1 kg"];
 
 type FormData = {
   name: string;
