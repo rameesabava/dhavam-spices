@@ -179,10 +179,10 @@ export default function EditProductClient() {
         );
       }
 
-      setSuccess("Product updated successfully.");
+     setSuccess("Product updated successfully.");
 
-      router.push("/admin/products");
-      router.refresh();
+router.replace("/admin/products");
+router.refresh();
     } catch (err) {
       setError(
         err instanceof Error
