@@ -16,8 +16,8 @@ api.interceptors.request.use(
     if (typeof window !== "undefined") {
       // Change "token" if your application stores it under another key.
       const token =
-        localStorage.getItem("token") ||
-        localStorage.getItem("accessToken");
+        sessionStorage.getItem("token") ||
+        sessionStorage.getItem("accessToken");
 
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
