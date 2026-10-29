@@ -2,12 +2,32 @@
 import axios from "axios";
 
 export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000",
+  baseURL:
+    process.env.NEXT_PUBLIC_API_URL ||
+    "http://localhost:5000",
   headers: {
     Accept: "application/json",
   },
   timeout: 15000,
 });
+
+api.interceptors.request.use(
+  (config) => {
+    if (typeof window !== "undefined") {
+      // Change "token" if your application stores it under another key.
+      const token =
+        localStorage.getItem("token") ||
+        localStorage.getItem("accessToken");
+
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    }
+
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
 api.interceptors.response.use(
   (response) => response,
