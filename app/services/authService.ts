@@ -64,10 +64,10 @@ export async function login(payload: LoginPayload) {
     throw new Error("Login succeeded, but no token was returned.");
   }
 
-  localStorage.setItem("token", data.token);
+  sessionStorage.setItem("token", data.token);
 
   if (data.user) {
-    localStorage.setItem("user", JSON.stringify(data.user));
+    sessionStorage.setItem("user", JSON.stringify(data.user));
   }
 
   return data;

@@ -4,7 +4,10 @@ import Reveal from "@/components/Reveal";
 import StarMark from "@/components/StarMark";
 import { waLink } from "@/lib/site";
 
-const HERO_IMG = "/images/hero-banner.png";
+const HERO_IMG = "/images/banner.png";
+// Real pixel size of banner.png (from your original aspect-[1774/887])
+const IMG_W = 1774;
+const IMG_H = 887;
 
 const WHY = [
   {
@@ -32,11 +35,7 @@ const USES = [
   "Sauces & spice blends",
 ];
 
-const CHIPS = [
-  "100% natural",
-  "No artificial flavours",
-  "Hygienically packed",
-];
+const CHIPS = ["100% natural", "No artificial flavours", "Hygienically packed"];
 
 const SPICES = [
   "Cardamom",
@@ -82,99 +81,97 @@ export default function Home() {
         }
       `}</style>
 
-      {/* HERO */}
-      <section className="relative isolate flex min-h-[650px] items-end overflow-hidden bg-[#1f2612] sm:min-h-[700px] md:min-h-[740px] lg:min-h-[min(850px,88svh)]">
-        <Image
-          src={HERO_IMG}
-          alt="Dhavam Spices jars of pepper, cardamom, cinnamon, star anise and cloves"
-          fill
-          priority
-          sizes="100vw"
-          className="-z-20 object-cover object-[60%_center] sm:object-center"
-        />
-
-        {/* Image overlays */}
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 -z-10 bg-gradient-to-r from-[#1f2612]/90 via-[#1f2612]/65 to-[#1f2612]/25"
-        />
-
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 -z-10 bg-gradient-to-t from-[#1f2612]/85 via-[#1f2612]/20 to-[#1f2612]/30"
-        />
-
-
-        <div className="relative mx-auto w-full max-w-[1200px] px-5 pb-12 pt-32 sm:px-6 sm:pb-16 md:pb-20 lg:px-8 lg:pb-24">
-          <Reveal>
-            <span className="inline-flex max-w-full items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-2 text-xs font-medium text-[#f6f1e4] backdrop-blur-md sm:px-4 sm:text-sm">
-              <span className="size-2 shrink-0 rounded-full bg-[#c29177]" />
-              <span>Farm-direct spices from Chennai</span>
-            </span>
-          </Reveal>
-
-          <Reveal delay={120}>
-            <h1 className="mt-6 max-w-4xl break-words font-[family-name:var(--font-bricolage)] text-[clamp(2.65rem,7vw,5.5rem)] font-bold leading-[1.04] tracking-tight text-white">
-              Pure spices, straight from the farm.
-            </h1>
-          </Reveal>
-
-          <Reveal delay={240}>
-            <p className="mt-5 max-w-xl text-base leading-7 text-[#f6f1e4]/90 sm:mt-6 sm:text-lg sm:leading-8 md:text-xl">
-              Premium, unadulterated spices and masalas. Cardamom, pepper,
-              cloves, cinnamon and star anise, whole or freshly ground.
-            </p>
-          </Reveal>
-
-          <Reveal delay={360}>
-            <div className="mt-8 flex flex-col items-stretch gap-3 min-[420px]:flex-row min-[420px]:flex-wrap min-[420px]:items-center sm:mt-9">
-              <Link
-                href="/products"
-                className={`group inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[#f6f1e4] px-6 py-3.5 text-sm font-semibold text-[#2f381b] shadow-xl shadow-black/20 transition-all duration-300 hover:-translate-y-0.5 hover:bg-white sm:px-8 sm:py-4 sm:text-base ${btnFocus}`}
-              >
-                Browse products
-                <span
-                  aria-hidden="true"
-                  className="transition-transform group-hover:translate-x-1"
-                >
-                  →
+      {/* ================= HERO ================= */}
+      <section className="relative isolate bg-[#171b0c] text-[#f6f1e4]">
+        <div className="relative flex flex-col xl:block">
+          {/* TEXT: overlaps the top of the image on mobile/tablet,
+              overlays the dark area on XL */}
+          <div className="relative z-10 xl:absolute xl:inset-0">
+            <div className="px-5 pt-8 sm:px-8 sm:pt-10 md:px-12 xl:w-[52%] xl:pb-0 xl:pl-[7vw] xl:pr-0 xl:pt-[3vw]">
+              <Reveal>
+                <span className="inline-flex max-w-full items-center gap-2 rounded-full border border-white/30 bg-black/30 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-sm sm:text-sm xl:px-4 xl:py-2">
+                  <span className="size-2 shrink-0 rounded-full bg-[#e3a27f]" />
+                  Farm-direct spices from Chennai
                 </span>
-              </Link>
+              </Reveal>
 
-              <Link
-                href="/about"
-                className={`inline-flex min-h-12 items-center justify-center rounded-full border border-white/60 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur-sm transition-colors duration-300 hover:bg-white/15 sm:px-8 sm:py-4 sm:text-base ${btnFocus}`}
-              >
-                Our story
-              </Link>
-            </div>
-          </Reveal>
+              <Reveal delay={100}>
+                <h1 className="mt-4 font-[family-name:var(--font-bricolage)] text-[clamp(2rem,8vw,3.25rem)] font-bold leading-[1.1] tracking-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)] xl:mt-[1.2vw] xl:text-[clamp(2.25rem,3.3vw,4.5rem)]">
+                  Pure spices,
+                  <br className="hidden xl:block" /> straight from
+                  <br className="hidden xl:block" /> the farm.
+                </h1>
+              </Reveal>
 
-          <Reveal delay={480}>
-            <ul className="mt-9 flex max-w-3xl flex-wrap gap-x-5 gap-y-3 rounded-2xl border border-white/15 bg-white/10 px-4 py-4 text-xs font-medium text-[#f6f1e4] backdrop-blur-md sm:mt-12 sm:gap-x-7 sm:px-6 sm:py-4 sm:text-sm">
-              {CHIPS.map((chip) => (
-                <li key={chip} className="flex items-center gap-2">
-                  <svg
-                    viewBox="0 0 20 20"
-                    className="size-4 shrink-0 text-[#e3a27f]"
-                    aria-hidden="true"
+              <Reveal delay={180}>
+                <p className="mt-3 max-w-[560px] text-sm leading-6 text-white drop-shadow-[0_1px_6px_rgba(0,0,0,0.7)] sm:text-base sm:leading-7 xl:mt-[1vw] xl:max-w-[34vw] xl:text-[clamp(0.9rem,1.1vw,1.25rem)] xl:leading-[1.6]">
+                  Premium, unadulterated spices and masalas. Cardamom, pepper,
+                  cloves, cinnamon and star anise, whole or freshly ground.
+                </p>
+              </Reveal>
+
+              <Reveal delay={260}>
+                <div className="mt-5 flex flex-row flex-wrap gap-3 xl:mt-[1.5vw]">
+                  <Link
+                    href="/products"
+                    className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-[#f6f1e4] px-5 py-2.5 text-sm font-bold text-[#2f381b] shadow-lg transition duration-300 hover:-translate-y-0.5 hover:bg-white sm:px-7 sm:py-3 lg:text-base ${btnFocus}`}
                   >
-                    <path
-                      d="M4 10.5l4 4 8-9"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
+                    Browse products
+                    <span aria-hidden="true">→</span>
+                  </Link>
+                  <Link
+                    href="/about"
+                    className={`inline-flex min-h-11 items-center justify-center rounded-full border border-white/60 bg-black/30 px-5 py-2.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/10 sm:px-7 sm:py-3 lg:text-base ${btnFocus}`}
+                  >
+                    Our story
+                  </Link>
+                </div>
+              </Reveal>
+            </div>
+          </div>
 
-                  <span>{chip}</span>
-                </li>
-              ))}
-            </ul>
-          </Reveal>
+          {/* IMAGE: complete, sharp, no blur. On mobile it is pulled up so the
+              text overlaps its top edge. */}
+          <div
+            className="relative z-0 -mt-[16vw] w-full overflow-hidden xl:mt-0"
+            style={{ aspectRatio: `${IMG_W} / ${IMG_H}` }}
+          >
+            <Image
+              src={HERO_IMG}
+              alt="Dhavam Spices star anise jar with assorted whole spices and powders"
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover"
+            />
+
+            {/* Mobile/tablet: soft fade only on the top part, rest stays clear */}
+            <div
+              aria-hidden="true"
+              className="absolute inset-x-0 top-0 h-[55%] bg-gradient-to-b from-[#171b0c] via-[#171b0c]/55 to-transparent xl:hidden"
+            />
+
+            {/* XL: subtle left shading for text readability */}
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 hidden bg-gradient-to-r from-[#101407]/40 via-transparent to-transparent xl:block"
+            />
+          </div>
         </div>
+
+        {/* Trust chips strip */}
+        <Reveal delay={340}>
+          <ul className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-white/10 bg-[#171b0c] px-5 py-4 text-xs font-medium text-white sm:text-sm">
+            {CHIPS.map((chip) => (
+              <li key={chip} className="flex items-center gap-2">
+                <span className="text-[#f0a47e]" aria-hidden="true">
+                  ✓
+                </span>
+                {chip}
+              </li>
+            ))}
+          </ul>
+        </Reveal>
       </section>
 
       {/* SPICE MARQUEE */}
@@ -340,9 +337,7 @@ export default function Home() {
             </p>
 
             <a
-              href={waLink(
-                "Hi Dhavam Spices, I'd like to place an order."
-              )}
+              href={waLink("Hi Dhavam Spices, I'd like to place an order.")}
               target="_blank"
               rel="noopener noreferrer"
               className={`mt-7 inline-flex min-h-12 max-w-full items-center justify-center rounded-full bg-[#f6f1e4] px-6 py-3.5 text-sm font-semibold text-[#2f381b] shadow-xl shadow-black/20 transition-all duration-300 hover:-translate-y-0.5 hover:bg-white sm:mt-9 sm:px-9 sm:py-4 sm:text-base ${btnFocus}`}
