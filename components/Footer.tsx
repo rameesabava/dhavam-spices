@@ -1,9 +1,16 @@
+
 import Link from "next/link";
 
 const PHONES = [
   { display: "+91 63830 73503", tel: "+916383073503" },
   { display: "+91 81481 23417", tel: "+918148123417" },
 ];
+
+const FACEBOOK_URL =
+  "https://www.facebook.com/profile.php?id=61595939693155";
+
+const INSTAGRAM_URL =
+  "https://www.instagram.com/dhavam_spices?psln=MTI2emRjOG1qMzBlNw%3D%3D";
 
 const SHOP_LINKS = [
   { label: "Cardamom", href: "/products" },
@@ -42,7 +49,9 @@ export default function Footer() {
   return (
     <footer className="bg-[#2f381b] font-[family-name:var(--font-dm-sans)] text-[#c9d1b2]">
       <div className="mx-auto max-w-[1200px] px-4 pb-8 pt-14 md:px-6">
+
         <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.3fr]">
+
           {/* Brand */}
           <div>
             <Link
@@ -125,6 +134,64 @@ export default function Footer() {
               >
                 dhavamspices@gmail.com
               </a>
+
+              {/* Social Media */}
+              <div className="pt-3">
+                <p className="mb-3 text-sm font-semibold text-white">
+                  Follow us
+                </p>
+
+                <div className="flex items-center gap-3">
+
+                  {/* Facebook */}
+                  <a
+                    href={FACEBOOK_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Dhavam Spices on Facebook"
+                    title="Facebook"
+                    className={`flex h-10 w-10 items-center justify-center rounded-full border border-[#56633a] text-[#c9d1b2] transition-all duration-300 hover:-translate-y-1 hover:bg-[#56633a] hover:text-white ${focusRing}`}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                      className="h-5 w-5"
+                    >
+                      <path d="M13.5 21v-8h2.7l.4-3.1h-3.1v-2c0-.9.3-1.5 1.6-1.5h1.7V3.6c-.3 0-1.3-.1-2.5-.1-2.5 0-4.2 1.5-4.2 4.3v2.1H7.3V13h2.8v8h3.4z" />
+                    </svg>
+                  </a>
+
+                  {/* Instagram */}
+                  <a
+                    href={INSTAGRAM_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Dhavam Spices on Instagram"
+                    title="Instagram"
+                    className={`flex h-10 w-10 items-center justify-center rounded-full border border-[#56633a] text-[#c9d1b2] transition-all duration-300 hover:-translate-y-1 hover:bg-[#56633a] hover:text-white ${focusRing}`}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      className="h-5 w-5"
+                    >
+                      <rect x="3" y="3" width="18" height="18" rx="5" />
+                      <circle cx="12" cy="12" r="4" />
+                      <circle
+                        cx="17.5"
+                        cy="6.5"
+                        r=".8"
+                        fill="currentColor"
+                      />
+                    </svg>
+                  </a>
+
+                </div>
+              </div>
             </address>
           </div>
         </div>
@@ -134,6 +201,7 @@ export default function Footer() {
           <p>© 2026 Dhavam Spices. All rights reserved.</p>
           <p>Pure spices, straight from the farm.</p>
         </div>
+
       </div>
     </footer>
   );
