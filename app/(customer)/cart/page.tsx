@@ -1,21 +1,19 @@
-
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { shopService } from "@/app/services/shopService";
-
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+import { imageSrc } from "@/lib/image";
 
 type CartItem = {
   _id: string;
-  productId: string;
+  productId: number | string;
   productName: string;
   productImage: string;
   size: string;
   quantity: number;
+  price: number;
 };
 
 export default function CartPage() {
@@ -43,10 +41,7 @@ export default function CartPage() {
     loadCart();
   }, [loadCart]);
 
-  async function updateItem(
-    id: string,
-    action: "increment" | "decrement" | "remove"
-  ) {
+  async function updateItem(id: string, action: "increment" | "decrement" | "remove") {
     const token = sessionStorage.getItem("token");
     if (!token) {
       setError("Please log in to update your cart.");
@@ -57,13 +52,9 @@ export default function CartPage() {
       setBusyId(id);
       setError("");
 
-      if (action === "increment") {
-        await shopService.increment(token, id);
-      } else if (action === "decrement") {
-        await shopService.decrement(token, id);
-      } else {
-        await shopService.removeCartItem(token, id);
-      }
+      if (action === "increment") await shopService.increment(token, id);
+      else if (action === "decrement") await shopService.decrement(token, id);
+      else await shopService.removeCartItem(token, id);
 
       await loadCart();
     } catch (e) {
@@ -73,18 +64,19 @@ export default function CartPage() {
     }
   }
 
-  if (loading) {
-    return <p className="p-10 text-center">Loading your cart...</p>;
-  }
+  const total = items.reduce((sum, i) => sum + Number(i.price) * i.quantity, 0);
+  const money = (n: number) => `₹${n.toLocaleString("en-IN")}`;
+
+  if (loading) return <p className="p-10 text-center">Loading your cart...</p>;
 
   return (
     <main className="mx-auto max-w-[1000px] px-4 py-12 md:px-6">
-      <h1 className="mb-8 text-4xl font-bold text-[#2f381b]">
-        Your Cart
-      </h1>
+      <h1 className="mb-8 text-4xl font-bold text-[#2f381b]">Your Cart</h1>
 
       {error && (
-        <p role="alert" className="mb-5 text-red-600">{error}</p>
+        <p role="alert" className="mb-5 text-red-600">
+          {error}
+        </p>
       )}
 
       {items.length === 0 ? (
@@ -108,7 +100,7 @@ export default function CartPage() {
                 <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-xl bg-[#e6ebdc]">
                   {item.productImage && (
                     <Image
-                      src={`${API_URL}/uploads/${item.productImage}`}
+                      src={imageSrc(item.productImage)}
                       alt={item.productName}
                       fill
                       unoptimized
@@ -119,11 +111,9 @@ export default function CartPage() {
                 </div>
 
                 <div className="flex-1">
-                  <h2 className="text-lg font-semibold text-[#2f381b]">
-                    {item.productName}
-                  </h2>
+                  <h2 className="text-lg font-semibold text-[#2f381b]">{item.productName}</h2>
                   <p className="mt-1 text-sm text-[#566049]">
-                    Size: {item.size}
+                    Size: {item.size} · {money(Number(item.price))} each
                   </p>
 
                   <div className="mt-3 flex items-center gap-3">
@@ -131,51 +121,52 @@ export default function CartPage() {
                       aria-label={`Decrease ${item.productName} quantity`}
                       disabled={busyId === item._id}
                       onClick={() => updateItem(item._id, "decrement")}
-                      className="h-9 w-9 rounded-full border border-[#dfe3d0] text-lg"
+                      className="h-9 w-9 rounded-full border border-[#dfe3d0] text-lg disabled:opacity-50"
                     >
                       −
                     </button>
-
-                    <span className="min-w-5 text-center">
-                      {item.quantity}
-                    </span>
-
+                    <span className="min-w-5 text-center">{item.quantity}</span>
                     <button
                       aria-label={`Increase ${item.productName} quantity`}
                       disabled={busyId === item._id}
                       onClick={() => updateItem(item._id, "increment")}
-                      className="h-9 w-9 rounded-full border border-[#dfe3d0] text-lg"
+                      className="h-9 w-9 rounded-full border border-[#dfe3d0] text-lg disabled:opacity-50"
                     >
                       +
                     </button>
                   </div>
                 </div>
 
-                <button
-                  disabled={busyId === item._id}
-                  onClick={() => updateItem(item._id, "remove")}
-                  className="self-start text-sm font-semibold text-red-600 sm:self-center"
-                >
-                  Remove
-                </button>
+                <div className="flex items-center justify-between gap-6 sm:flex-col sm:items-end">
+                  <p className="font-bold text-[#2f381b]">
+                    {money(Number(item.price) * item.quantity)}
+                  </p>
+                  <button
+                    disabled={busyId === item._id}
+                    onClick={() => updateItem(item._id, "remove")}
+                    className="text-sm font-semibold text-red-600 disabled:opacity-50"
+                  >
+                    Remove
+                  </button>
+                </div>
               </article>
             ))}
           </div>
 
           <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
-            <Link
-              href="/products"
-              className="font-semibold text-[#3f4a24] underline"
-            >
+            <Link href="/products" className="font-semibold text-[#3f4a24] underline">
               Continue Shopping
             </Link>
 
-            <Link
-              href="/order?from=cart"
-              className="rounded-full bg-[#3f4a24] px-7 py-3 font-semibold text-white hover:bg-[#2f381b]"
-            >
-              Proceed to Checkout
-            </Link>
+            <div className="flex items-center gap-5">
+              <p className="text-lg font-bold text-[#2f381b]">Total: {money(total)}</p>
+              <Link
+                href="/order?from=cart"
+                className="rounded-full bg-[#3f4a24] px-7 py-3 font-semibold text-white hover:bg-[#2f381b]"
+              >
+                Proceed to Checkout
+              </Link>
+            </div>
           </div>
         </>
       )}

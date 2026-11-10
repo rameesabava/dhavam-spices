@@ -16,15 +16,15 @@ import {
 } from "lucide-react";
 
 interface User {
-  _id: string;
+  id?: number | string;
+  _id?: string;
   username: string;
   email: string;
-  phone: string;
+  phone?: string;
   role: string;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
-const USERS_PER_PAGE = 10;
+const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/+$/, "");const USERS_PER_PAGE = 10;
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -72,9 +72,13 @@ export default function AdminUsersPage() {
         throw new Error("Unexpected response from the server.");
       }
 
-      const customers: User[] = data.users.filter(
-        (user: User) => user.role === "user"
-      );
+      const customers: User[] = data.users
+        .filter((user: User) => user.role === "user")
+        .map((user: User) => ({
+          ...user,
+          _id: String(user.id ?? user._id ?? ""),
+        }))
+        .filter((user: User) => user._id !== "");
 
       setUsers(customers);
       setCurrentPage(1);
@@ -98,7 +102,7 @@ export default function AdminUsersPage() {
 
     if (!confirmed) return;
 
-    setDeletingId(user._id);
+    setDeletingId(user._id ?? null);
     setError("");
     setSuccess("");
 
@@ -388,7 +392,7 @@ export default function AdminUsersPage() {
                         </div>
 
                         <p className="mt-1 break-all text-[11px] text-gray-400">
-                          ID: {user._id.slice(-6)}
+                          ID: {user._id?.slice(-6) || "N/A"}
                         </p>
                       </div>
                     </div>
@@ -488,7 +492,7 @@ export default function AdminUsersPage() {
                               </p>
 
                               <p className="mt-1 text-xs text-gray-400">
-                                ID: {user._id.slice(-6)}
+                                ID: {user._id?.slice(-6) || "N/A"}
                               </p>
                             </div>
                           </div>
@@ -598,11 +602,10 @@ export default function AdminUsersPage() {
                         currentPage === page ? "page" : undefined
                       }
                       aria-label={`Page ${page}`}
-                      className={`min-h-9 min-w-9 rounded-lg px-2.5 text-sm font-semibold transition ${
-                        currentPage === page
-                          ? "bg-[#2f381b] text-white"
-                          : "border border-[#e1e5d8] text-[#2f381b] hover:bg-[#edf1e5]"
-                      }`}
+                      className={`min-h-9 min-w-9 rounded-lg px-2.5 text-sm font-semibold transition ${currentPage === page
+                        ? "bg-[#2f381b] text-white"
+                        : "border border-[#e1e5d8] text-[#2f381b] hover:bg-[#edf1e5]"
+                        }`}
                     >
                       {page}
                     </button>

@@ -11,35 +11,40 @@ import { api } from "@/lib/axios";
 import { GROUPS } from "@/lib/products";
 import axios from "axios";
 
-const label = "mb-1.5 block text-sm font-medium text-[#2f381b]";
+const label =
+  "mb-1.5 block text-sm font-medium text-[#2f381b]";
 
 const input =
   "w-full rounded-xl border border-[#cfd5bf] bg-white px-4 py-3 text-[#20261f] placeholder:text-[#9aa28c] focus:outline-none focus:ring-4 focus:ring-[#9a432a]/20";
 
-const PACK_SIZES = ["50 g", "100 g", "150 g", "250 g", "500 g", "1 kg"];
+type ProductSize = {
+  size: string;
+  price: string;
+};
 
 type FormData = {
   name: string;
   group: string;
   description: string;
-  sizes: string[];
+  sizes: ProductSize[];
 };
 
-export default function ProductForm() {
-  const initialForm: FormData = {
-    name: "",
-    group: GROUPS[0]?.id ?? "whole",
-    description: "",
-    sizes: ["100 g"],
-  };
+const createInitialForm = (): FormData => ({
+  name: "",
+  group: GROUPS[0]?.id ?? "whole",
+  description: "",
+  sizes: [{ size: "", price: "" }],
+});
 
-  const [f, setF] = useState<FormData>(initialForm);
+export default function ProductForm() {
+  const [f, setF] = useState<FormData>(createInitialForm);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  // Image preview
   useEffect(() => {
     if (!file) {
       setPreview("");
@@ -52,8 +57,11 @@ export default function ProductForm() {
     return () => URL.revokeObjectURL(url);
   }, [file]);
 
+  // Update normal product fields
   function updateField(
-    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    e: ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
   ) {
     const { name, value } = e.target;
 
@@ -66,18 +74,53 @@ export default function ProductForm() {
     setSaved(false);
   }
 
-  function toggleSize(size: string) {
+  // Update size or price
+  function updateSizeField(
+    index: number,
+    field: "size" | "price",
+    value: string
+  ) {
     setF((previous) => ({
       ...previous,
-      sizes: previous.sizes.includes(size)
-        ? previous.sizes.filter((item) => item !== size)
-        : [...previous.sizes, size],
+      sizes: previous.sizes.map((item, i) =>
+        i === index
+          ? { ...item, [field]: value }
+          : item
+      ),
     }));
 
     setError("");
     setSaved(false);
   }
 
+  // Add another size-price row
+  function addSizeRow() {
+    setF((previous) => ({
+      ...previous,
+      sizes: [
+        ...previous.sizes,
+        { size: "", price: "" },
+      ],
+    }));
+
+    setError("");
+    setSaved(false);
+  }
+
+  // Remove a size-price row
+  function removeSizeRow(index: number) {
+    setF((previous) => ({
+      ...previous,
+      sizes: previous.sizes.filter(
+        (_, i) => i !== index
+      ),
+    }));
+
+    setError("");
+    setSaved(false);
+  }
+
+  // Select and validate product image
   function selectImage(selectedFile?: File) {
     if (!selectedFile) return;
 
@@ -86,17 +129,17 @@ export default function ProductForm() {
       return;
     }
 
-    if (selectedFile.size > 5 * 1024 * 1024) {
-      setError("Image size must be less than 5 MB.");
-      return;
-    }
+      if (selectedFile.size > 2 * 1024 * 1024) { setError("Image size must be less than 2 MB."); return; }
 
     setFile(selectedFile);
     setError("");
     setSaved(false);
   }
 
-  async function onSubmit(e: FormEvent<HTMLFormElement>) {
+  // Submit product
+  async function onSubmit(
+    e: FormEvent<HTMLFormElement>
+  ) {
     e.preventDefault();
 
     if (saving) return;
@@ -105,14 +148,48 @@ export default function ProductForm() {
       setError("Please enter the product name.");
       return;
     }
+    if (!f.description.trim()) {
+  setError("Please enter a product description.");
+  return;
+}
 
     if (!f.group) {
       setError("Please select a product group.");
       return;
     }
 
-    if (f.sizes.length === 0) {
-      setError("Please select at least one pack size.");
+    if (!f.sizes.length) {
+      setError("Please add at least one pack size.");
+      return;
+    }
+
+    const invalidSize = f.sizes.some(
+      (item) =>
+        !item.size.trim() ||
+        !item.price.trim() ||
+        !Number.isFinite(Number(item.price)) ||
+        Number(item.price) <= 0
+    );
+
+    if (invalidSize) {
+      setError(
+        "Enter a valid size and a price greater than zero for every row."
+      );
+      return;
+    }
+
+    const duplicateSizes =
+      f.sizes.some(
+        (item, index) =>
+          f.sizes.findIndex(
+            (other) =>
+              other.size.trim().toLowerCase() ===
+              item.size.trim().toLowerCase()
+          ) !== index
+      );
+
+    if (duplicateSizes) {
+      setError("Please remove duplicate pack sizes.");
       return;
     }
 
@@ -132,50 +209,48 @@ export default function ProductForm() {
       body.append("description", f.description.trim());
       body.append("group", f.group);
 
-      // Send the sizes array as JSON for the backend controller.
-      body.append("sizes", JSON.stringify(f.sizes));
+      const cleanedSizes = f.sizes.map((item) => ({
+        size: item.size.trim(),
+        price: item.price.trim(),
+      }));
 
-      // Must match upload.single("image") in your Express route.
+      body.append(
+        "sizes",
+        JSON.stringify(cleanedSizes)
+      );
+
       body.append("image", file);
 
       await api.post("/product/add", body);
 
-      setF({
-        name: "",
-        group: GROUPS[0]?.id ?? "whole",
-        description: "",
-        sizes: ["100 g"],
-      });
-
+      setF(createInitialForm());
       setFile(null);
       setSaved(true);
-   
-} catch (err: unknown) {
-  if (axios.isAxiosError(err)) {
-    console.error("Add product API error:", err.response?.data);
-    console.error("HTTP status:", err.response?.status);
+    } catch (err: unknown) {
+      console.error("Add product API error:", err);
 
-    setError(
-      err.response?.data?.message ||
-        err.response?.data?.error ||
-        (typeof err.response?.data === "string"
-          ? err.response.data
-          : err.message) ||
-        "Unable to save product."
-    );
-  } else {
-    console.error("Add product error:", err);
+      if (axios.isAxiosError(err)) {
+        console.error(
+          "Response:",
+          err.response?.data
+        );
 
-    setError(
-      err instanceof Error
-        ? err.message
-        : "Unable to save product."
-    );
-  }
-} finally {
-  setSaving(false);
-}
-
+        setError(
+          err.response?.data?.message ||
+          err.response?.data?.error ||
+          err.message ||
+          "Unable to save product."
+        );
+      } else {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Unable to save product."
+        );
+      }
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -189,14 +264,19 @@ export default function ProductForm() {
           <h2 className="text-xl font-bold text-[#2f381b]">
             Add a new product
           </h2>
+
           <p className="mt-1 text-sm text-[#7a8470]">
-            Enter the product details and choose its available pack sizes.
+            Enter product details and add available pack
+            sizes with their prices.
           </p>
         </div>
 
         {/* Product image */}
         <div>
-          <label htmlFor="product-image" className={label}>
+          <label
+            htmlFor="product-image"
+            className={label}
+          >
             Product image
           </label>
 
@@ -213,6 +293,7 @@ export default function ProductForm() {
                 <p className="font-semibold text-[#9a432a]">
                   Choose a product photo
                 </p>
+
                 <p className="mt-1 text-xs text-[#7a8470]">
                   JPG, PNG, WEBP · Maximum 5 MB
                 </p>
@@ -223,7 +304,9 @@ export default function ProductForm() {
               id="product-image"
               type="file"
               accept="image/*"
-              onChange={(e) => selectImage(e.target.files?.[0])}
+              onChange={(e) =>
+                selectImage(e.target.files?.[0])
+              }
               className="absolute inset-0 cursor-pointer opacity-0"
             />
           </div>
@@ -240,6 +323,7 @@ export default function ProductForm() {
           <label htmlFor="name" className={label}>
             Product name
           </label>
+
           <input
             id="name"
             name="name"
@@ -265,55 +349,112 @@ export default function ProductForm() {
             className={input}
           >
             {GROUPS.map((group) => (
-              <option key={group.id} value={group.id}>
+              <option
+                key={group.id}
+                value={group.id}
+              >
                 {group.title}
               </option>
             ))}
           </select>
         </div>
 
-        {/* Multiple sizes */}
+        {/* Dynamic size and price rows */}
         <fieldset>
-          <legend className={label}>Available pack sizes</legend>
+          <legend className={label}>
+            Available pack sizes and prices
+          </legend>
 
-          <p className="mb-3 text-xs text-[#7a8470]">
-            Select every size available for this product.
+          <p className="mb-4 text-xs text-[#7a8470]">
+            Add different pack sizes and set an individual
+            price for each size.
           </p>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {PACK_SIZES.map((size) => {
-              const checked = f.sizes.includes(size);
+          <div className="space-y-3">
+            {f.sizes.map((item, index) => (
+              <div
+                key={index}
+                className="rounded-xl border border-[#dfe3d0] bg-[#f8f9f5] p-3"
+              >
+                <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+                  <div>
+                    <label
+                      htmlFor={`size-${index}`}
+                      className="mb-1 block text-xs font-medium text-[#566049]"
+                    >
+                      Pack size
+                    </label>
 
-              return (
-                <label
-                  key={size}
-                  className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-3 text-sm transition-colors ${
-                    checked
-                      ? "border-[#3f4a24] bg-[#eef2e5] text-[#2f381b]"
-                      : "border-[#cfd5bf] text-[#566049] hover:bg-[#f8f9f5]"
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => toggleSize(size)}
-                    className="size-4 accent-[#3f4a24]"
-                  />
-                  <span>{size}</span>
-                </label>
-              );
-            })}
+                    <input
+                      id={`size-${index}`}
+                      type="text"
+                      value={item.size}
+                      onChange={(e) =>
+                        updateSizeField(
+                          index,
+                          "size",
+                          e.target.value
+                        )
+                      }
+                      placeholder="50 g"
+                      className={input}
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor={`price-${index}`}
+                      className="mb-1 block text-xs font-medium text-[#566049]"
+                    >
+                      Price (₹)
+                    </label>
+
+                    <input
+                      id={`price-${index}`}
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={item.price}
+                      onChange={(e) =>
+                        updateSizeField(
+                          index,
+                          "price",
+                          e.target.value
+                        )
+                      }
+                      placeholder="100"
+                      className={input}
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => removeSizeRow(index)}
+                    disabled={f.sizes.length === 1}
+                    className="rounded-xl border border-red-200 px-4 py-3 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
 
-          <p className="mt-3 text-sm text-[#566049]">
-            Selected sizes:{" "}
-            {f.sizes.length > 0 ? f.sizes.join(", ") : "None"}
-          </p>
+          <button
+            type="button"
+            onClick={addSizeRow}
+            className="mt-4 rounded-full border border-[#3f4a24] px-5 py-2.5 text-sm font-semibold text-[#3f4a24] transition hover:bg-[#f3f5ed]"
+          >
+            + Add another size
+          </button>
         </fieldset>
 
         {/* Description */}
         <div>
-          <label htmlFor="description" className={label}>
+          <label
+            htmlFor="description"
+            className={label}
+          >
             Description
           </label>
 
@@ -333,7 +474,7 @@ export default function ProductForm() {
           </p>
         </div>
 
-        {/* Feedback */}
+        {/* Error */}
         {error && (
           <p
             role="alert"
@@ -343,6 +484,7 @@ export default function ProductForm() {
           </p>
         )}
 
+        {/* Success */}
         {saved && (
           <p
             role="status"
@@ -378,7 +520,9 @@ export default function ProductForm() {
                 className="h-full w-full object-contain p-4"
               />
             ) : (
-              <p className="text-sm text-[#7a8470]">Product image</p>
+              <p className="text-sm text-[#7a8470]">
+                Product image
+              </p>
             )}
           </div>
 
@@ -395,21 +539,23 @@ export default function ProductForm() {
               Available sizes
             </p>
 
-            <div className="mt-2 flex flex-wrap gap-2">
-              {f.sizes.length ? (
-                f.sizes.map((size) => (
-                  <span
-                    key={size}
-                    className="rounded-full border border-[#cfd5bf] bg-[#f4f6ee] px-3 py-1 text-xs text-[#2f381b]"
-                  >
-                    {size}
+            <div className="mt-2 space-y-2">
+              {f.sizes.map((item, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between rounded-lg border border-[#dfe3d0] bg-[#f4f6ee] px-3 py-2 text-sm"
+                >
+                  <span className="text-[#2f381b]">
+                    {item.size || "Pack size"}
                   </span>
-                ))
-              ) : (
-                <span className="text-sm text-[#7a8470]">
-                  No sizes selected
-                </span>
-              )}
+
+                  <span className="font-semibold text-[#3f4a24]">
+                    {item.price
+                      ? `₹${item.price}`
+                      : "Price"}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         </div>

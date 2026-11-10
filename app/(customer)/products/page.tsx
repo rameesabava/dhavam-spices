@@ -5,6 +5,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { getProducts } from "@/app/services/productService";
 import { shopService } from "@/app/services/shopService";
+import { imageSrc } from "@/lib/image";
+
+type ProductSize = {
+  size: string;
+  price: string | number;
+};
 
 type Product = {
   _id: string;
@@ -12,7 +18,7 @@ type Product = {
   description: string;
   group: string;
   image: string;
-  sizes: string[] | string;
+  sizes: ProductSize[] | string[] | string;
 };
 
 type Notification = {
@@ -20,195 +26,237 @@ type Notification = {
   message: string;
 };
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-
-const DEFAULT_SIZES = ["50 g", "100 g", "150 g", "200 g"];
-
 const categories = [
   { key: "whole", title: "Whole Spices" },
-  { key: "powder", title: "Spice Powders" },
+  { key: "ground", title: "Spice Powders" },
   { key: "combo", title: "Spice Combos" },
 ];
 
-function getSizes(sizes: Product["sizes"]): string[] {
-  if (Array.isArray(sizes)) {
-    return sizes
-      .map(String)
-      .map((size) => size.trim())
-      .filter(Boolean);
-  }
+// Convert backend sizes into a consistent format
+function getSizes(sizes: Product["sizes"]): ProductSize[] {
+  let parsed: unknown = sizes;
 
-  if (typeof sizes === "string" && sizes.trim()) {
+  if (typeof sizes === "string") {
     try {
-      const parsed = JSON.parse(sizes);
-
-      if (Array.isArray(parsed)) {
-        return parsed
-          .map(String)
-          .map((size) => size.trim())
-          .filter(Boolean);
-      }
+      parsed = JSON.parse(sizes);
     } catch {
-      // Support comma-separated sizes.
+      parsed = sizes.split(",");
     }
-
-    return sizes
-      .split(",")
-      .map((size) => size.trim())
-      .filter(Boolean);
   }
 
-  return [];
+  if (!Array.isArray(parsed)) {
+    return [];
+  }
+
+  return parsed
+    .map((item): ProductSize | null => {
+      // New format: { size, price }
+      if (item && typeof item === "object" && "size" in item) {
+        const value = item as { size: unknown; price?: unknown };
+        const size = String(value.size ?? "").trim();
+
+        if (!size) return null;
+
+        return {
+          size,
+          price:
+            typeof value.price === "string" || typeof value.price === "number"
+              ? value.price
+              : "",
+        };
+      }
+
+      // Old format: "50 g"
+      const size = String(item ?? "").trim();
+
+      if (!size) return null;
+
+      return { size, price: "" };
+    })
+    .filter((item): item is ProductSize => item !== null);
 }
 
-function getProductSizes(product: Product): string[] {
-  const existingSizes = getSizes(product.sizes);
+function getProductSizes(product: Product): ProductSize[] {
+  return getSizes(product.sizes);
+}
 
-  // Use default sizes if the product has no sizes.
-  return existingSizes.length > 0 ? existingSizes : DEFAULT_SIZES;
+function formatPrice(price: string | number): string {
+  const value = Number(price);
+
+  if (!Number.isFinite(value) || value <= 0) {
+    return "";
+  }
+
+  return `₹${value.toLocaleString("en-IN")}`;
 }
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
-  const [selectedSizes, setSelectedSizes] =
-    useState<Record<string, string>>({});
+  const [selectedSizes, setSelectedSizes] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
-  const [notification, setNotification] =
-    useState<Notification | null>(null);
+  const [notification, setNotification] = useState<Notification | null>(null);
 
- 
-useEffect(() => {
-  let active = true;
+  // Load products without requiring login
+  useEffect(() => {
+    let active = true;
 
-  async function loadProducts() {
-    try {
-      // No login required to view products
-      const data: any = await getProducts();
+    async function loadProducts() {
+      try {
+        const data: any = await getProducts();
 
-      const list: Product[] = Array.isArray(data)
-        ? data
-        : data.products ?? [];
+        const rawProducts = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.products)
+            ? data.products
+            : [];
 
-      if (!active) return;
+        const list: Product[] = rawProducts.map((product: any) => ({
+          _id: String(product.id ?? product._id),
+          name: product.name,
+          description: product.description,
+          group: String(product.category ?? product.group ?? "").toLowerCase(),
+          image: product.imageUrl ?? product.image ?? "",
+          sizes: product.sizes ?? [],
+        }));
 
-      setProducts(list);
+        if (!active) return;
 
-      const initial: Record<string, string> = {};
+        setProducts(list);
 
-      list.forEach((product) => {
-        const sizes = getProductSizes(product);
-        initial[product._id] = sizes[0] ?? "";
+        const initial: Record<string, string> = {};
+
+        list.forEach((product) => {
+          const sizes = getProductSizes(product);
+          initial[product._id] = sizes[0]?.size ?? "";
+        });
+
+        setSelectedSizes(initial);
+      } catch (e) {
+        if (!active) return;
+
+        setNotification({
+          type: "error",
+          message: e instanceof Error ? e.message : "Unable to load products.",
+        });
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadProducts();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Get selected size details
+  function getSelectedSize(product: Product) {
+    const sizes = getProductSizes(product);
+    return sizes.find((item) => item.size === selectedSizes[product._id]);
+  }
+
+  // Add product to cart
+  async function addToCart(product: Product) {
+    const token = sessionStorage.getItem("token");
+    const selectedSize = getSelectedSize(product);
+
+    if (!token) {
+      window.location.href = `/login?redirect=${encodeURIComponent("/products")}`;
+      return;
+    }
+
+    if (!selectedSize) {
+      setNotification({
+        type: "error",
+        message: "Please select a size first.",
       });
+      return;
+    }
 
-      setSelectedSizes(initial);
+    try {
+      setBusy(product._id);
+      setNotification(null);
+
+      const result = await shopService.addToCart(
+        token,
+        product._id,
+        selectedSize.size
+      );
+
+      const isUpdated = result?.message === "Cart quantity updated";
+
+      setNotification({
+        type: "success",
+        message: isUpdated
+          ? `${product.name} (${selectedSize.size}) quantity updated in your cart.`
+          : `${product.name} (${selectedSize.size}) added to your cart.`,
+      });
     } catch (e) {
-      if (!active) return;
-
       setNotification({
         type: "error",
         message:
-          e instanceof Error
-            ? e.message
-            : "Unable to load products.",
+          e instanceof Error ? e.message : "Could not add the item to your cart.",
       });
     } finally {
-      if (active) {
-        setLoading(false);
-      }
+      setBusy("");
     }
   }
 
-  loadProducts();
+  // Order a product directly
+  function orderNow(product: Product) {
+    const token = sessionStorage.getItem("token");
+    const selectedSize = getSelectedSize(product);
 
-  return () => {
-    active = false;
-  };
-}, []);
+    if (!selectedSize) {
+      setNotification({
+        type: "error",
+        message: "Please select a size first.",
+      });
+      return;
+    }
 
+    const orderUrl =
+      `/order?product=${encodeURIComponent(product._id)}` +
+      `&size=${encodeURIComponent(selectedSize.size)}`;
 
-  
-async function addToCart(product: Product) {
-  const token = sessionStorage.getItem("token");
-  const size = selectedSizes[product._id];
+    if (!token) {
+      window.location.href = `/login?redirect=${encodeURIComponent(orderUrl)}`;
+      return;
+    }
 
-  // Require login only for cart operations
-  if (!token) {
-    window.location.href =
-      `/login?redirect=${encodeURIComponent("/products")}`;
-    return;
+    window.location.href = orderUrl;
   }
 
-  if (!size) {
-    setNotification({
-      type: "error",
-      message: "Please select a size first.",
-    });
-    return;
-  }
-
-  try {
-    setBusy(product._id);
-    setNotification(null);
-
-    const result = await shopService.addToCart(
-      token,
-      product._id,
-      size
-    );
-
-    const isUpdated =
-      result?.message === "Cart quantity updated";
-
-    setNotification({
-      type: "success",
-      message: isUpdated
-        ? `${product.name} (${size}) quantity updated in your cart.`
-        : `${product.name} (${size}) added to your cart.`,
-    });
-  } catch (e) {
-    setNotification({
-      type: "error",
-      message:
-        e instanceof Error
-          ? e.message
-          : "Could not add the item to your cart.",
-    });
-  } finally {
-    setBusy("");
-  }
-}
-
-
+  // Automatically dismiss notifications
   useEffect(() => {
     if (!notification) return;
 
-    const timeout = window.setTimeout(() => {
-      setNotification(null);
-    }, notification.type === "success" ? 3000 : 5000);
+    const timeout = window.setTimeout(
+      () => setNotification(null),
+      notification.type === "success" ? 3000 : 5000
+    );
 
     return () => window.clearTimeout(timeout);
   }, [notification]);
 
   if (loading) {
     return (
-      <p className="p-10 text-center text-[#566049]">
-        Loading products...
-      </p>
+      <p className="p-10 text-center text-[#566049]">Loading products...</p>
     );
   }
 
   return (
-    <main className="mx-auto max-w-[1200px] px-4 py-12 md:px-6">
+    <main className="mx-auto max-w-[1320px] px-4 py-12 md:px-6">
       {/* Notification */}
       {notification && (
         <div
           key={`${notification.type}-${notification.message}`}
           role={notification.type === "error" ? "alert" : "status"}
-          aria-live={
-            notification.type === "error" ? "assertive" : "polite"
-          }
+          aria-live={notification.type === "error" ? "assertive" : "polite"}
           className={`fixed right-4 top-24 z-50 flex max-w-[calc(100vw-2rem)] items-start gap-3 rounded-xl border bg-white px-5 py-4 shadow-xl sm:right-6 sm:max-w-md ${
             notification.type === "success"
               ? "border-green-200"
@@ -234,7 +282,7 @@ async function addToCart(product: Product) {
               }`}
             >
               {notification.type === "success"
-                ? "Added to cart!"
+                ? "Cart updated!"
                 : "Something went wrong"}
             </p>
 
@@ -255,8 +303,8 @@ async function addToCart(product: Product) {
       )}
 
       {/* Page heading */}
-      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-4xl font-bold text-[#2f381b]">
+      <div className="mb-10 flex flex-wrap items-center justify-between gap-4">
+        <h1 className="text-4xl font-bold tracking-tight text-[#2f381b]">
           Our Products
         </h1>
 
@@ -271,8 +319,7 @@ async function addToCart(product: Product) {
       {/* Product categories */}
       {categories.map((category) => {
         const items = products.filter(
-          (product) =>
-            product.group?.trim().toLowerCase() === category.key
+          (product) => product.group?.trim().toLowerCase() === category.key
         );
 
         if (!items.length) return null;
@@ -281,114 +328,132 @@ async function addToCart(product: Product) {
           <section
             key={category.key}
             id={category.key}
-            className="mb-14 scroll-mt-24"
+            className="mb-16 scroll-mt-24"
           >
-            <h2 className="mb-6 border-b border-[#dfe3d0] pb-3 text-2xl font-semibold text-[#2f381b]">
+            <h2 className="mb-8 border-b border-[#dfe3d0] pb-3 text-2xl font-semibold text-[#2f381b]">
               {category.title}
             </h2>
 
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 lg:gap-8">
               {items.map((product) => {
                 const sizes = getProductSizes(product);
+                const selectedSize = getSelectedSize(product);
 
                 return (
                   <article
                     key={product._id}
-                    className="flex flex-col overflow-hidden rounded-2xl border border-[#dfe3d0] bg-white transition-shadow duration-300 hover:shadow-lg"
+                    className="group flex flex-col overflow-hidden rounded-3xl border border-[#e3e8dc] bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-[#2f381b]/10"
                   >
-                    {/* Product image */}
-                    <div className="relative aspect-square bg-[#e6ebdc]">
+                    {/* Image */}
+                    <div className="relative aspect-[4/3] overflow-hidden bg-[#e6ebdc]">
                       {product.image ? (
                         <Image
-                          src={`${API_URL}/uploads/${product.image}`}
+                          src={imageSrc(product.image)}
                           alt={product.name}
                           fill
                           unoptimized
-                          sizes="(min-width:1024px) 25vw, 50vw"
-                          className="object-cover"
+                          sizes="(min-width:1024px) 33vw, (min-width:640px) 50vw, 100vw"
+                          className="object-cover transition-transform duration-500 group-hover:scale-105"
                         />
                       ) : (
-                        <div className="flex h-full items-center justify-center text-[#566049]">
+                        <div className="flex h-full items-center justify-center text-sm text-[#566049]">
                           Photo coming soon
                         </div>
                       )}
+
+                      <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-[#3f4a24] backdrop-blur">
+                        {category.title}
+                      </span>
                     </div>
 
-                    {/* Product details */}
-                    <div className="flex flex-1 flex-col p-5">
-                      <h3 className="text-xl font-semibold text-[#2f381b]">
+                    {/* Details */}
+                    <div className="flex flex-1 flex-col p-6">
+                      <h3 className="text-xl font-bold tracking-tight text-[#2f381b]">
                         {product.name}
                       </h3>
 
-                      <p className="mt-2 flex-1 leading-relaxed text-[#566049]">
+                      <p className="mt-2 line-clamp-3 flex-1 text-sm leading-6 text-[#566049]">
                         {product.description}
                       </p>
 
-                      {/* Size selection */}
-                      <label
-                        htmlFor={`size-${product._id}`}
-                        className="mt-4 text-sm font-medium text-[#3f4a24]"
-                      >
-                        Select size
-                      </label>
+                      {/* Sizes */}
+                      {sizes.length === 0 ? (
+                        <p className="mt-5 text-sm text-red-600">
+                          No sizes available yet.
+                        </p>
+                      ) : (
+                        <div className="mt-5">
+                          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#7a8470]">
+                            Select size
+                          </p>
 
-                      <select
-                        id={`size-${product._id}`}
-                        value={selectedSizes[product._id] ?? ""}
-                        onChange={(e) =>
-                          setSelectedSizes((prev) => ({
-                            ...prev,
-                            [product._id]: e.target.value,
-                          }))
-                        }
-                        className="mt-2 w-full rounded-lg border border-[#dfe3d0] bg-white p-3 text-sm outline-none focus:border-[#3f4a24] focus:ring-2 focus:ring-[#3f4a24]/20"
-                      >
-                        <option value="">Choose a size</option>
+                          <div
+                            role="radiogroup"
+                            aria-label={`Size for ${product.name}`}
+                            className="flex flex-wrap gap-2"
+                          >
+                            {sizes.map((item) => {
+                              const active =
+                                selectedSizes[product._id] === item.size;
 
-                        {sizes.map((size) => (
-                          <option key={size} value={size}>
-                            {size}
-                          </option>
-                        ))}
-                      </select>
+                              return (
+                                <button
+                                  key={item.size}
+                                  type="button"
+                                  role="radio"
+                                  aria-checked={active}
+                                  onClick={() =>
+                                    setSelectedSizes((previous) => ({
+                                      ...previous,
+                                      [product._id]: item.size,
+                                    }))
+                                  }
+                                  className={`rounded-full border px-4 py-1.5 text-sm font-medium transition ${
+                                    active
+                                      ? "border-[#3f4a24] bg-[#3f4a24] text-white"
+                                      : "border-[#dfe3d0] bg-white text-[#3f4a24] hover:border-[#3f4a24]"
+                                  }`}
+                                >
+                                  {item.size}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
 
-                      {/* Add to cart */}
-                      <button
-                        type="button"
-                        onClick={() => addToCart(product)}
-                        disabled={busy === product._id || !sizes.length}
-                        className="mt-4 w-full rounded-full bg-[#3f4a24] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#2f381b] disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {busy === product._id
-                          ? "Adding..."
-                          : "Add to Cart"}
-                      </button>
+                      {/* Price */}
+                      <div className="mt-5 flex items-end justify-between border-t border-[#edf0e4] pt-5">
+                        <div>
+                          <p className="text-xs text-[#7a8470]">Price</p>
+                          <p className="text-2xl font-bold text-[#2f381b]">
+                            {selectedSize
+                              ? formatPrice(selectedSize.price) || "Unavailable"
+                              : "—"}
+                          </p>
+                        </div>
+                      </div>
 
-                      {/* Order now */}
-                     
-<button
-  type="button"
-  onClick={() => {
-    const token = sessionStorage.getItem("token");
+                      {/* Buttons */}
+                      <div className="mt-4 grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => addToCart(product)}
+                          disabled={busy === product._id || !sizes.length}
+                          className="rounded-full bg-[#3f4a24] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#2f381b] disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {busy === product._id ? "Adding..." : "Add to Cart"}
+                        </button>
 
-    const orderUrl = `/order?product=${product._id}&size=${encodeURIComponent(
-      selectedSizes[product._id] ?? ""
-    )}`;
-
-    if (!token) {
-      window.location.href = `/login?redirect=${encodeURIComponent(
-        orderUrl
-      )}`;
-      return;
-    }
-
-    window.location.href = orderUrl;
-  }}
-  className="mt-3 inline-flex w-full justify-center rounded-full border border-[#3f4a24] px-5 py-2.5 text-sm font-semibold text-[#3f4a24] transition-colors hover:bg-[#f3f5ed]"
->
-  Order Now
-</button>
-
+                        <button
+                          type="button"
+                          onClick={() => orderNow(product)}
+                          disabled={!sizes.length}
+                          className="rounded-full border border-[#3f4a24] px-4 py-3 text-sm font-semibold text-[#3f4a24] transition hover:bg-[#f3f5ed] disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Order Now
+                        </button>
+                      </div>
                     </div>
                   </article>
                 );
@@ -398,6 +463,7 @@ async function addToCart(product: Product) {
         );
       })}
 
+      {/* No products */}
       {products.length === 0 && (
         <p className="py-10 text-center text-[#566049]">
           No products available.

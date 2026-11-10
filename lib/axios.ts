@@ -34,11 +34,15 @@ api.interceptors.response.use(
   (error) => {
     console.error("API request failed:", {
       message: error.message,
+      code: error.code,
       url: error.config?.url,
       baseURL: error.config?.baseURL,
       method: error.config?.method,
       status: error.response?.status,
       responseData: error.response?.data,
+      request: error.request
+        ? "Request sent, no response received"
+        : "Request not sent"
     });
 
     return Promise.reject(error);

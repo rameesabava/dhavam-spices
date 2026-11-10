@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
@@ -26,8 +25,7 @@ type Profile = {
 const inputClass =
   "w-full rounded-xl border border-[#cfd5bf] bg-white px-4 py-3 text-[#20261f] outline-none transition focus:border-[#3f4a24] focus:ring-4 focus:ring-[#3f4a24]/10";
 
-const labelClass =
-  "mb-2 block text-sm font-semibold text-[#2f381b]";
+const labelClass = "mb-2 block text-sm font-semibold text-[#2f381b]";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -54,27 +52,36 @@ export default function ProfilePage() {
       const token = sessionStorage.getItem("token");
 
       if (!token) {
-        router.replace("/login");
+        router.replace("/login?redirect=/profile");
         return;
       }
 
       try {
         const response = await api.get("/profile", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
 
         if (active) {
+          const user = response.data.user;
           setProfile({
-            username: response.data.user.username ?? "",
-            email: response.data.user.email ?? "",
-            phone: response.data.user.phone ?? "",
+            username: user.username ?? "",
+            email: user.email ?? "",
+            phone: user.phone ?? "",
           });
         }
-      } catch {
+      } catch (err: unknown) {
+        const status = (err as { response?: { status?: number } }).response?.status;
+
+        if (status === 401) {
+          sessionStorage.removeItem("token");
+          sessionStorage.removeItem("username");
+          sessionStorage.removeItem("role");
+          router.replace("/login?redirect=/profile");
+          return;
+        }
+
         if (active) {
-          setError("Unable to load your profile. Please log in again.");
+          setError("Unable to load your profile. Please try again.");
         }
       } finally {
         if (active) setLoading(false);
@@ -89,11 +96,7 @@ export default function ProfilePage() {
   }, [router]);
 
   function handleChange(field: keyof Profile, value: string) {
-    setProfile((previous) => ({
-      ...previous,
-      [field]: value,
-    }));
-
+    setProfile((previous) => ({ ...previous, [field]: value }));
     setMessage("");
     setError("");
   }
@@ -104,9 +107,7 @@ export default function ProfilePage() {
     setMessage("");
     setError("");
 
-    if (!profile.username.trim() ||
-        !profile.email.trim() ||
-        !profile.phone.trim()) {
+    if (!profile.username.trim() || !profile.email.trim() || !profile.phone.trim()) {
       setError("Please fill in all profile fields.");
       return;
     }
@@ -131,7 +132,7 @@ export default function ProfilePage() {
     const token = sessionStorage.getItem("token");
 
     if (!token) {
-      router.replace("/login");
+      router.replace("/login?redirect=/profile");
       return;
     }
 
@@ -150,22 +151,23 @@ export default function ProfilePage() {
       }
 
       const response = await api.put("/profile", payload, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       const { user, token: updatedToken } = response.data;
 
-      // Keep the existing login session in sync.
-      sessionStorage.setItem("token", updatedToken);
-      sessionStorage.setItem("username", user.username);
-      sessionStorage.setItem("role", user.role);
+      // Only replace the token if the server actually sent a new one.
+      // (Saving an undefined value would store the text "undefined" and log you out.)
+      if (updatedToken) {
+        sessionStorage.setItem("token", updatedToken);
+      }
+      sessionStorage.setItem("username", user.username ?? "");
+      sessionStorage.setItem("role", user.role ?? "user");
 
       setProfile({
-        username: user.username,
-        email: user.email,
-        phone: user.phone,
+        username: user.username ?? "",
+        email: user.email ?? "",
+        phone: user.phone ?? "",
       });
 
       setCurrentPassword("");
@@ -176,16 +178,10 @@ export default function ProfilePage() {
 
       setMessage("Your profile has been updated successfully.");
     } catch (err: unknown) {
-      const responseError = (
-        err as {
-          response?: {
-            data?: {
-              message?: string;
-            };
-          };
-          message?: string;
-        }
-      );
+      const responseError = err as {
+        response?: { data?: { message?: string } };
+        message?: string;
+      };
 
       setError(
         responseError.response?.data?.message ||
@@ -243,9 +239,7 @@ export default function ProfilePage() {
               {profile.username || "Your account"}
             </h2>
 
-            <p className="mt-2 break-all text-sm text-[#d3dbbd]">
-              {profile.email}
-            </p>
+            <p className="mt-2 break-all text-sm text-[#d3dbbd]">{profile.email}</p>
 
             <div className="mt-7 border-t border-white/15 pt-5">
               <div className="flex items-start gap-3">
@@ -264,9 +258,7 @@ export default function ProfilePage() {
           {/* Edit form */}
           <section className="min-w-0 rounded-3xl border border-[#e3e8dc] bg-white p-5 shadow-sm sm:p-8">
             <div className="mb-7">
-              <h2 className="text-xl font-bold text-[#2f381b]">
-                Personal information
-              </h2>
+              <h2 className="text-xl font-bold text-[#2f381b]">Personal information</h2>
               <p className="mt-1 text-sm text-[#68705d]">
                 Update your contact details and password.
               </p>
@@ -435,9 +427,7 @@ export default function ProfilePage() {
                 disabled={saving}
                 className="flex w-full items-center justify-center gap-2 rounded-full bg-[#3f4a24] px-6 py-3.5 font-semibold text-white shadow-lg shadow-[#3f4a24]/15 transition hover:bg-[#2f381b] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-48"
               >
-                {saving && (
-                  <LoaderCircle size={18} className="animate-spin" />
-                )}
+                {saving && <LoaderCircle size={18} className="animate-spin" />}
                 {saving ? "Saving changes..." : "Save changes"}
               </button>
             </form>

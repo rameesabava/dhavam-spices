@@ -1,4 +1,3 @@
-
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
@@ -7,16 +6,15 @@ import Link from "next/link";
 import Image from "next/image";
 import { getProducts } from "@/app/services/productService";
 import { shopService } from "@/app/services/shopService";
+import { imageSrc } from "@/lib/image";
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+type SizeOption = { size: string; price: number };
 
 type Product = {
-  _id: string;
+  id: string;
   name: string;
-  description?: string;
   image: string;
-  sizes: string[] | string;
+  sizes: SizeOption[];
 };
 
 type OrderItem = {
@@ -25,42 +23,29 @@ type OrderItem = {
   productImage: string;
   size: string;
   quantity: number;
+  price: number;
 };
 
-type CartItem = OrderItem & {
-  _id: string;
-};
-
-function parseSizes(value: Product["sizes"]): string[] {
-  if (Array.isArray(value)) {
-    return value
-      .map(String)
-      .map((size) => size.trim())
-      .filter(Boolean);
-  }
-
-  if (typeof value === "string" && value.trim()) {
+function toSizes(value: unknown): SizeOption[] {
+  let v = value;
+  if (typeof v === "string") {
     try {
-      const parsed = JSON.parse(value);
-
-      if (Array.isArray(parsed)) {
-        return parsed
-          .map(String)
-          .map((size) => size.trim())
-          .filter(Boolean);
-      }
+      v = JSON.parse(v);
     } catch {
-      // Fall back to comma-separated sizes.
+      return [];
     }
-
-    return value
-      .split(",")
-      .map((size) => size.trim())
-      .filter(Boolean);
   }
+  if (!Array.isArray(v)) return [];
 
-  return [];
+  return v
+    .map((s: any) => ({
+      size: String(s?.size ?? s ?? "").trim(),
+      price: Number(s?.price) || 0,
+    }))
+    .filter((s) => s.size);
 }
+
+const money = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 
 export default function OrderPage() {
   const router = useRouter();
@@ -74,15 +59,13 @@ export default function OrderPage() {
   const [username, setUsername] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
-  const [paymentMethod, setPaymentMethod] =
-    useState("Cash on Delivery");
+  const [paymentMethod, setPaymentMethod] = useState("Cash on Delivery");
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // Require login before loading the checkout page.
   useEffect(() => {
     let active = true;
 
@@ -90,13 +73,8 @@ export default function OrderPage() {
       const token = sessionStorage.getItem("token");
 
       if (!token) {
-        const currentUrl =
-          window.location.pathname + window.location.search;
-
-        router.replace(
-          `/login?redirect=${encodeURIComponent(currentUrl)}`
-        );
-
+        const current = window.location.pathname + window.location.search;
+        router.replace(`/login?redirect=${encodeURIComponent(current)}`);
         return;
       }
 
@@ -107,91 +85,72 @@ export default function OrderPage() {
         const cartCheckout = params.get("from") === "cart";
 
         if (!active) return;
-
         setAuthorized(true);
         setFromCart(cartCheckout);
 
         if (cartCheckout) {
           const data: any = await shopService.getCart(token);
+          const cart: any[] = Array.isArray(data) ? data : data?.items ?? [];
 
-          const cart: CartItem[] = Array.isArray(data)
-            ? data
-            : data?.items ?? [];
-
-          if (!cart.length) {
-            throw new Error("Your cart is empty.");
-          }
-
+          if (!cart.length) throw new Error("Your cart is empty.");
           if (!active) return;
 
           setItems(
-            cart.map((item) => ({
-              productId: item.productId,
-              productName: item.productName,
-              productImage: item.productImage,
-              size: item.size,
-              quantity: item.quantity,
+            cart.map((i) => ({
+              productId: String(i.productId),
+              productName: i.productName,
+              productImage: i.productImage,
+              size: i.size,
+              quantity: i.quantity,
+              price: Number(i.price) || 0,
             }))
           );
         } else if (productId) {
-          // Product viewing is public; checkout remains protected.
           const data: any = await getProducts();
+          const list: any[] = Array.isArray(data) ? data : data?.products ?? [];
 
-          const products: Product[] = Array.isArray(data)
-            ? data
-            : data?.products ?? [];
+          const raw = list.find((p) => String(p.id ?? p._id) === productId);
+          if (!raw) throw new Error("Product not found.");
 
-          const selected = products.find(
-            (item) => item._id === productId
-          );
-
-          if (!selected) {
-            throw new Error("Product not found.");
-          }
-
-          const sizes = parseSizes(selected.sizes);
+          const selected: Product = {
+            id: String(raw.id ?? raw._id),
+            name: raw.name,
+            image: raw.imageUrl ?? raw.image ?? "",
+            sizes: toSizes(raw.sizes),
+          };
 
           if (!active) return;
-
           setProduct(selected);
 
-          const size = sizes.includes(requestedSize)
-            ? requestedSize
-            : sizes[0] ?? "";
+          const chosen =
+            selected.sizes.find((s) => s.size === requestedSize) ?? selected.sizes[0];
 
-          setSelectedSize(size);
-
-          setItems([
-            {
-              productId: selected._id,
-              productName: selected.name,
-              productImage: selected.image,
-              size,
-              quantity: 1,
-            },
-          ]);
-        } else {
-          throw new Error(
-            "Select a product or proceed from your cart to checkout."
+          setSelectedSize(chosen?.size ?? "");
+          setItems(
+            chosen
+              ? [
+                  {
+                    productId: selected.id,
+                    productName: selected.name,
+                    productImage: selected.image,
+                    size: chosen.size,
+                    quantity: 1,
+                    price: chosen.price,
+                  },
+                ]
+              : []
           );
+        } else {
+          throw new Error("Select a product or proceed from your cart to checkout.");
         }
       } catch (e) {
-        if (!active) return;
-
-        setError(
-          e instanceof Error
-            ? e.message
-            : "Unable to load checkout."
-        );
+        if (active) setError(e instanceof Error ? e.message : "Unable to load checkout.");
       } finally {
-        if (active) {
-          setLoading(false);
-        }
+        if (active) setLoading(false);
       }
     }
 
     initialize();
-
     return () => {
       active = false;
     };
@@ -199,30 +158,29 @@ export default function OrderPage() {
 
   function changeSize(size: string) {
     setSelectedSize(size);
+    if (!product) return;
 
-    if (product) {
-      setItems((previous) =>
-        previous.map((item) => ({
-          ...item,
-          size,
-        }))
-      );
-    }
+    const option = product.sizes.find((s) => s.size === size);
+    if (!option) return;
+
+    setItems((prev) => prev.map((i) => ({ ...i, size, price: option.price })));
   }
+
+  function changeQuantity(delta: number) {
+    setItems((prev) =>
+      prev.map((i) => ({ ...i, quantity: Math.max(1, i.quantity + delta) }))
+    );
+  }
+
+  const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
   async function submitOrder(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
     const token = sessionStorage.getItem("token");
-
     if (!token) {
-      const currentUrl =
-        window.location.pathname + window.location.search;
-
-      router.replace(
-        `/login?redirect=${encodeURIComponent(currentUrl)}`
-      );
-
+      const current = window.location.pathname + window.location.search;
+      router.replace(`/login?redirect=${encodeURIComponent(current)}`);
       return;
     }
 
@@ -230,22 +188,11 @@ export default function OrderPage() {
       setError("Please complete all required fields.");
       return;
     }
-
     if (!/^\d{10}$/.test(phone.trim())) {
       setError("Enter a valid 10-digit phone number.");
       return;
     }
-
-    if (
-      items.length === 0 ||
-      items.some(
-        (item) =>
-          !item.productId ||
-          !item.size ||
-          !Number.isInteger(item.quantity) ||
-          item.quantity < 1
-      )
-    ) {
+    if (items.length === 0 || items.some((i) => !i.productId || !i.size)) {
       setError("Please select a valid product size.");
       return;
     }
@@ -253,7 +200,6 @@ export default function OrderPage() {
     try {
       setSubmitting(true);
       setError("");
-      setSuccess("");
 
       await shopService.placeOrder(token, {
         username: username.trim(),
@@ -263,26 +209,20 @@ export default function OrderPage() {
         paymentMethod,
       });
 
-      let confirmation =
-        "Your order has been placed successfully!";
+      let confirmation = "Your order has been placed successfully!";
 
       if (fromCart) {
         try {
           await shopService.clearCart(token);
         } catch {
-          confirmation +=
-            " Your order was placed, but the cart could not be cleared.";
+          confirmation += " Your order was placed, but the cart could not be cleared.";
         }
       }
 
       setSuccess(confirmation);
       setItems([]);
     } catch (e) {
-      setError(
-        e instanceof Error
-          ? e.message
-          : "Failed to place order."
-      );
+      setError(e instanceof Error ? e.message : "Failed to place order.");
     } finally {
       setSubmitting(false);
     }
@@ -303,25 +243,30 @@ export default function OrderPage() {
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#e6ebdc] text-3xl text-[#3f4a24]">
             ✓
           </div>
-
-          <h1 className="mt-5 text-3xl font-bold text-[#2f381b]">
-            Order Confirmed!
-          </h1>
-
-          <p className="mt-4 leading-relaxed text-[#566049]">
-            {success}
-          </p>
-
-          <Link
-            href="/products"
-            className="mt-7 inline-block rounded-full bg-[#3f4a24] px-6 py-3 font-semibold text-white transition hover:bg-[#2f381b]"
-          >
-            Continue Shopping
-          </Link>
+          <h1 className="mt-5 text-3xl font-bold text-[#2f381b]">Order Confirmed!</h1>
+          <p className="mt-4 leading-relaxed text-[#566049]">{success}</p>
+          <div className="mt-7 flex flex-wrap justify-center gap-3">
+            <Link
+              href="/myOrders"
+              className="rounded-full border border-[#3f4a24] px-6 py-3 font-semibold text-[#3f4a24]"
+            >
+              View my orders
+            </Link>
+            <Link
+              href="/products"
+              className="rounded-full bg-[#3f4a24] px-6 py-3 font-semibold text-white transition hover:bg-[#2f381b]"
+            >
+              Continue Shopping
+            </Link>
+          </div>
         </div>
       </main>
     );
   }
+
+  const inputCls =
+    "w-full rounded-lg border border-[#dfe3d0] p-3 outline-none focus:border-[#3f4a24] focus:ring-2 focus:ring-[#3f4a24]/20";
+  const labelCls = "mb-2 block text-sm font-medium text-[#3f4a24]";
 
   return (
     <main className="mx-auto max-w-[1000px] px-4 py-12 md:px-6">
@@ -329,11 +274,7 @@ export default function OrderPage() {
         <p className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-[#9a432a]">
           Dhavam Spices
         </p>
-
-        <h1 className="text-3xl font-bold text-[#2f381b] sm:text-4xl">
-          Checkout
-        </h1>
-
+        <h1 className="text-3xl font-bold text-[#2f381b] sm:text-4xl">Checkout</h1>
         <p className="mt-2 text-[#566049]">
           Confirm your products and enter your delivery details.
         </p>
@@ -351,38 +292,26 @@ export default function OrderPage() {
       <div className="grid items-start gap-8 md:grid-cols-2">
         {/* Order summary */}
         <section className="rounded-2xl border border-[#dfe3d0] bg-white p-5 sm:p-6">
-          <h2 className="mb-5 text-xl font-semibold text-[#2f381b]">
-            Order Summary
-          </h2>
+          <h2 className="mb-5 text-xl font-semibold text-[#2f381b]">Order Summary</h2>
 
           {product && (
             <div className="mb-5">
-              <label
-                htmlFor="product-size"
-                className="mb-2 block text-sm font-medium text-[#3f4a24]"
-              >
+              <label htmlFor="product-size" className={labelCls}>
                 Select size
               </label>
-
               <select
                 id="product-size"
                 value={selectedSize}
                 onChange={(e) => changeSize(e.target.value)}
-                required
-                className="w-full rounded-lg border border-[#dfe3d0] bg-white p-3 outline-none focus:border-[#3f4a24] focus:ring-2 focus:ring-[#3f4a24]/20"
+                className={`${inputCls} bg-white`}
               >
-                <option value="" disabled>
-                  Choose a size
-                </option>
-
-                {parseSizes(product.sizes).map((size) => (
-                  <option key={size} value={size}>
-                    {size}
+                {product.sizes.map((s) => (
+                  <option key={s.size} value={s.size}>
+                    {s.size} — {money(s.price)}
                   </option>
                 ))}
               </select>
-
-              {parseSizes(product.sizes).length === 0 && (
+              {product.sizes.length === 0 && (
                 <p className="mt-2 text-sm text-red-600">
                   No sizes are available for this product. Please contact us.
                 </p>
@@ -400,7 +329,7 @@ export default function OrderPage() {
                   <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-[#e6ebdc]">
                     {item.productImage && (
                       <Image
-                        src={`${API_URL}/uploads/${item.productImage}`}
+                        src={imageSrc(item.productImage)}
                         alt={item.productName}
                         fill
                         unoptimized
@@ -410,35 +339,48 @@ export default function OrderPage() {
                     )}
                   </div>
 
-                  <div className="min-w-0">
-                    <h3 className="font-semibold text-[#2f381b]">
-                      {item.productName}
-                    </h3>
-
-                    <p className="mt-1 text-sm text-[#566049]">
-                      Size: {item.size}
-                    </p>
-
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-semibold text-[#2f381b]">{item.productName}</h3>
+                    <p className="mt-1 text-sm text-[#566049]">Size: {item.size}</p>
                     <p className="text-sm text-[#566049]">
-                      Quantity: {item.quantity}
+                      {money(item.price)} × {item.quantity}
                     </p>
+
+                    {!fromCart && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => changeQuantity(-1)}
+                          className="h-7 w-7 rounded-full border border-[#dfe3d0]"
+                        >
+                          −
+                        </button>
+                        <span className="min-w-5 text-center text-sm">{item.quantity}</span>
+                        <button
+                          type="button"
+                          onClick={() => changeQuantity(1)}
+                          className="h-7 w-7 rounded-full border border-[#dfe3d0]"
+                        >
+                          +
+                        </button>
+                      </div>
+                    )}
                   </div>
+
+                  <p className="font-semibold text-[#2f381b]">
+                    {money(item.price * item.quantity)}
+                  </p>
                 </div>
               ))}
+
+              <div className="flex items-center justify-between rounded-xl bg-[#f3f5ed] p-4">
+                <span className="font-medium text-[#566049]">Total</span>
+                <span className="text-xl font-bold text-[#2f381b]">{money(total)}</span>
+              </div>
             </div>
           ) : (
-            <p className="py-4 text-sm text-[#566049]">
-              No items available to display.
-            </p>
+            <p className="py-4 text-sm text-[#566049]">No items available to display.</p>
           )}
-
-          <div className="mt-5 rounded-xl bg-[#f3f5ed] p-4">
-            <p className="text-sm leading-relaxed text-[#566049]">
-              Product prices are not displayed because your current
-              product schema does not include a price field. Your order
-              can be confirmed according to your existing backend flow.
-            </p>
-          </div>
         </section>
 
         {/* Delivery form */}
@@ -446,61 +388,45 @@ export default function OrderPage() {
           onSubmit={submitOrder}
           className="space-y-5 rounded-2xl border border-[#dfe3d0] bg-white p-5 sm:p-6"
         >
-          <h2 className="text-xl font-semibold text-[#2f381b]">
-            Delivery Details
-          </h2>
+          <h2 className="text-xl font-semibold text-[#2f381b]">Delivery Details</h2>
 
           <div>
-            <label
-              htmlFor="username"
-              className="mb-2 block text-sm font-medium text-[#3f4a24]"
-            >
+            <label htmlFor="username" className={labelCls}>
               Full Name
             </label>
-
             <input
               id="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
               autoComplete="name"
-              className="w-full rounded-lg border border-[#dfe3d0] p-3 outline-none focus:border-[#3f4a24] focus:ring-2 focus:ring-[#3f4a24]/20"
+              className={inputCls}
               placeholder="Enter your full name"
             />
           </div>
 
           <div>
-            <label
-              htmlFor="phone"
-              className="mb-2 block text-sm font-medium text-[#3f4a24]"
-            >
+            <label htmlFor="phone" className={labelCls}>
               Phone Number
             </label>
-
             <input
               id="phone"
               type="tel"
               inputMode="numeric"
               value={phone}
-              onChange={(e) =>
-                setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))
-              }
+              onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
               required
               autoComplete="tel"
               maxLength={10}
-              className="w-full rounded-lg border border-[#dfe3d0] p-3 outline-none focus:border-[#3f4a24] focus:ring-2 focus:ring-[#3f4a24]/20"
+              className={inputCls}
               placeholder="10-digit phone number"
             />
           </div>
 
           <div>
-            <label
-              htmlFor="address"
-              className="mb-2 block text-sm font-medium text-[#3f4a24]"
-            >
+            <label htmlFor="address" className={labelCls}>
               Delivery Address
             </label>
-
             <textarea
               id="address"
               value={address}
@@ -508,38 +434,29 @@ export default function OrderPage() {
               required
               rows={4}
               autoComplete="street-address"
-              className="w-full resize-y rounded-lg border border-[#dfe3d0] p-3 outline-none focus:border-[#3f4a24] focus:ring-2 focus:ring-[#3f4a24]/20"
+              className={`${inputCls} resize-y`}
               placeholder="House name, street, city, PIN code"
             />
           </div>
 
           <div>
-            <label
-              htmlFor="payment"
-              className="mb-2 block text-sm font-medium text-[#3f4a24]"
-            >
+            <label htmlFor="payment" className={labelCls}>
               Payment Method
             </label>
-
             <select
               id="payment"
               value={paymentMethod}
               onChange={(e) => setPaymentMethod(e.target.value)}
-              className="w-full rounded-lg border border-[#dfe3d0] bg-white p-3 outline-none focus:border-[#3f4a24] focus:ring-2 focus:ring-[#3f4a24]/20"
+              className={`${inputCls} bg-white`}
             >
-              <option value="Cash on Delivery">
-                Cash on Delivery
-              </option>
+              <option value="Cash on Delivery">Cash on Delivery</option>
+<option value="Online Payment">Online Payment (UPI / Card / Net Banking)</option>
             </select>
           </div>
 
           <button
             type="submit"
-            disabled={
-              submitting ||
-              items.length === 0 ||
-              items.some((item) => !item.size)
-            }
+            disabled={submitting || items.length === 0 || items.some((i) => !i.size)}
             className="w-full rounded-full bg-[#3f4a24] px-6 py-3 font-semibold text-white transition hover:bg-[#2f381b] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {submitting ? "Placing Order..." : "Place Order"}

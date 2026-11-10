@@ -17,34 +17,64 @@ import {
 import { adminService } from "@/app/services/adminService";
 
 type Product = {
+  id?: string | number;
   _id: string;
   name: string;
   description: string;
   group?: string;
-  image: string;
-  sizes?: string[] | string;
-};
+  image?: string;
+  imageUrl?: string;
+  sizes?: string[] | string | { size: string; price: string | number }[];
 
-const API_URL = (
+}; const API_URL = (
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 ).replace(/\/+$/, "");
 
 const PAGE_SIZE = 9;
+function getProductImageUrl(product: Product): string | null {
+  const image = product.imageUrl || product.image;
 
+  if (!image) return null;
+
+  // Image is already a complete URL
+  if (image.startsWith("http://") || image.startsWith("https://")) {
+    return image;
+  }
+
+  // Image path already contains /uploads/
+  if (image.startsWith("/")) {
+    return `${API_URL}${image}`;
+  }
+
+  if (image.startsWith("uploads/")) {
+    return `${API_URL}/${image}`;
+  }
+
+  // Only filename is stored
+  return `${API_URL}/uploads/${image}`;
+}
 function formatSizes(value?: Product["sizes"]) {
   if (Array.isArray(value)) {
-    return value.length > 0 ? value.join(" · ") : "No sizes";
+    if (value.length === 0) return "No sizes";
+
+    return value
+      .map((item) => {
+        if (typeof item === "string") return item;
+
+        return `${item.size} - ₹${item.price}`;
+      })
+      .join(" · ");
   }
 
   if (typeof value === "string") {
     try {
-      const parsed: unknown = JSON.parse(value);
+      const parsed = JSON.parse(value);
 
       if (Array.isArray(parsed)) {
-        return parsed.join(" · ") || "No sizes";
+        return formatSizes(parsed as Product["sizes"]);
       }
     } catch {
-      // The size value may be a plain string.
+      return value || "No sizes";
     }
 
     return value || "No sizes";
@@ -52,7 +82,6 @@ function formatSizes(value?: Product["sizes"]) {
 
   return "No sizes";
 }
-
 export default function ProductsTable() {
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
@@ -85,7 +114,24 @@ export default function ProductsTable() {
         throw new Error("The server returned an invalid product list.");
       }
 
-      setProducts(productList);
+      const normalizedProducts: Product[] = productList.map(
+        (product: Omit<Product, "_id"> & { _id?: string | number }) => {
+          const productId = product.id ?? product._id;
+
+          if (productId === undefined || productId === null || productId === "") {
+            throw new Error(
+              `Product "${product.name}" is missing its ID.`
+            );
+          }
+
+          return {
+            ...product,
+            _id: String(productId),
+          };
+        }
+      );
+
+      setProducts(normalizedProducts);
       setPage(1);
     } catch (e) {
       setError(
@@ -283,7 +329,7 @@ export default function ProductsTable() {
         >
           <option value="all">All categories</option>
           <option value="whole">Whole Spices</option>
-          <option value="powder">Spice Powders</option>
+<option value="ground">Spice Powders</option>
           <option value="combo">Spice Combos</option>
         </select>
       </div>
@@ -361,24 +407,26 @@ export default function ProductsTable() {
               >
                 {/* Product image */}
                 <div className="relative aspect-[4/3] bg-[#e6ebdc]">
-                  {product.image ? (
+                  {getProductImageUrl(product) ? (
                     <Image
-                      src={`${API_URL}/uploads/${product.image}`}
+                      src={getProductImageUrl(product)!}
                       alt={product.name}
                       fill
                       unoptimized
                       sizes="(min-width:1280px) 33vw, (min-width:640px) 50vw, 100vw"
                       className="object-contain p-3"
+                      onError={(event) => {
+                        console.error(
+                          "Product image failed to load:",
+                          event.currentTarget.src
+                        );
+                      }}
                     />
                   ) : (
                     <div className="flex h-full items-center justify-center text-sm text-[#566049]">
                       No product image
                     </div>
                   )}
-
-                  <span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1 text-xs font-semibold capitalize text-[#3f4a24] shadow-sm">
-                    {product.group || "whole"}
-                  </span>
                 </div>
 
                 {/* Product details */}
@@ -422,9 +470,7 @@ export default function ProductsTable() {
                       className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       <Trash2 size={16} />
-                      {deletingId === product._id
-                        ? "Deleting..."
-                        : "Delete"}
+                      {deletingId === product._id ? "Deleting..." : "Delete"}
                     </button>
                   </div>
                 </div>
@@ -490,11 +536,10 @@ export default function ProductsTable() {
                       item === currentPage ? "page" : undefined
                     }
                     onClick={() => setPage(item)}
-                    className={`h-9 min-w-9 rounded-lg border px-2 text-sm font-semibold transition ${
-                      item === currentPage
-                        ? "border-[#3f4a24] bg-[#3f4a24] text-white"
-                        : "border-[#dfe3d0] bg-white text-[#3f4a24] hover:bg-[#edf0e4]"
-                    }`}
+                    className={`h-9 min-w-9 rounded-lg border px-2 text-sm font-semibold transition ${item === currentPage
+                      ? "border-[#3f4a24] bg-[#3f4a24] text-white"
+                      : "border-[#dfe3d0] bg-white text-[#3f4a24] hover:bg-[#edf0e4]"
+                      }`}
                   >
                     {item}
                   </button>

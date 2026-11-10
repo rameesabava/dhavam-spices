@@ -37,6 +37,17 @@ function validate(v: Values): Errors {
   return e;
 }
 
+// Only allow redirects to pages inside this site
+function getSafeRedirect(): string {
+  const redirect = new URLSearchParams(window.location.search).get("redirect");
+
+  if (redirect && redirect.startsWith("/") && !redirect.startsWith("//")) {
+    return redirect;
+  }
+
+  return "/products";
+}
+
 const inputBase =
   "w-full rounded-xl border bg-white px-4 py-3 text-[#20261f] placeholder:text-[#9aa28c] transition-shadow focus:outline-none focus:ring-4 focus:ring-[#9a432a]/25";
 
@@ -56,10 +67,7 @@ function Field({
   return (
     <div>
       <div className="mb-1.5 flex items-baseline justify-between">
-        <label
-          htmlFor={id}
-          className="text-sm font-medium text-[#2f381b]"
-        >
+        <label htmlFor={id} className="text-sm font-medium text-[#2f381b]">
           {label}
         </label>
         {aside}
@@ -68,11 +76,7 @@ function Field({
       {children}
 
       {error && (
-        <p
-          id={`${id}-err`}
-          role="alert"
-          className="mt-1.5 text-sm text-[#b3341f]"
-        >
+        <p id={`${id}-err`} role="alert" className="mt-1.5 text-sm text-[#b3341f]">
           {error}
         </p>
       )}
@@ -83,14 +87,8 @@ function Field({
 export default function LoginForm() {
   const router = useRouter();
 
-  const [v, setV] = useState<Values>({
-    email: "",
-    password: "",
-  });
-
-  const [touched, setTouched] = useState<
-    Partial<Record<FieldName, boolean>>
-  >({});
+  const [v, setV] = useState<Values>({ email: "", password: "" });
+  const [touched, setTouched] = useState<Partial<Record<FieldName, boolean>>>({});
   const [submitted, setSubmitted] = useState(false);
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -109,7 +107,6 @@ export default function LoginForm() {
     };
 
     resetForm();
-
     window.addEventListener("pageshow", resetForm);
 
     return () => {
@@ -126,22 +123,16 @@ export default function LoginForm() {
     }
   });
 
-  const set =
-    (k: FieldName) => (e: ChangeEvent<HTMLInputElement>) => {
-      setV((p) => ({ ...p, [k]: e.target.value }));
-
-      if (formError) {
-        setFormError("");
-      }
-    };
+  const set = (k: FieldName) => (e: ChangeEvent<HTMLInputElement>) => {
+    setV((p) => ({ ...p, [k]: e.target.value }));
+    if (formError) setFormError("");
+  };
 
   const blur = (k: FieldName) => () =>
     setTouched((t) => ({ ...t, [k]: true }));
 
   const cls = (k: FieldName) =>
-    `${inputBase} ${
-      errors[k] ? "border-[#b3341f]" : "border-[#cfd5bf]"
-    }`;
+    `${inputBase} ${errors[k] ? "border-[#b3341f]" : "border-[#cfd5bf]"}`;
 
   const aria = (k: FieldName) => ({
     "aria-invalid": !!errors[k],
@@ -159,9 +150,7 @@ export default function LoginForm() {
     const firstBad = FIELD_ORDER.find((k) => all[k]);
 
     if (firstBad) {
-      formRef.current
-        ?.querySelector<HTMLInputElement>(`#${firstBad}`)
-        ?.focus();
+      formRef.current?.querySelector<HTMLInputElement>(`#${firstBad}`)?.focus();
       return;
     }
 
@@ -174,15 +163,15 @@ export default function LoginForm() {
       });
 
       sessionStorage.setItem("token", data.token);
-      sessionStorage.setItem("username", data.user.username);
-      sessionStorage.setItem("role", data.user.role);
+      sessionStorage.setItem("username", data.user.username ?? "");
+      sessionStorage.setItem("role", data.user.role ?? "user");
 
       window.dispatchEvent(new Event("authChanged"));
 
       if (data.user.role === "admin") {
         router.push("/admin");
       } else {
-        router.push("/products");
+        router.push(getSafeRedirect());
       }
     } catch (err) {
       setFormError(
@@ -195,17 +184,9 @@ export default function LoginForm() {
   }
 
   return (
-    <form
-      ref={formRef}
-      onSubmit={onSubmit}
-      noValidate
-      className="space-y-5"
-    >
+    <form ref={formRef} onSubmit={onSubmit} noValidate className="space-y-5">
       {formError && (
-        <p
-          role="alert"
-          className="rounded-xl bg-[#fbeae7] px-4 py-3 text-sm text-[#b3341f]"
-        >
+        <p role="alert" className="rounded-xl bg-[#fbeae7] px-4 py-3 text-sm text-[#b3341f]">
           {formError}
         </p>
       )}
@@ -267,10 +248,7 @@ export default function LoginForm() {
 
       <p className="text-center text-sm text-[#566049]">
         New to Dhavam Spices?{" "}
-        <Link
-          href="/register"
-          className="font-semibold text-[#9a432a] hover:underline"
-        >
+        <Link href="/register" className="font-semibold text-[#9a432a] hover:underline">
           Create an account
         </Link>
       </p>

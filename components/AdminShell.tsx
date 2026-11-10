@@ -72,6 +72,7 @@ function AdminShellContent({ children }: { children: ReactNode }) {
   const handleLogout = () => {
     sessionStorage.removeItem("token");
     sessionStorage.removeItem("username");
+    sessionStorage.removeItem("role");
 
     window.dispatchEvent(new Event("authChanged"));
     router.push("/");
