@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   ShieldCheck,
 } from "lucide-react";
+import { adminService } from "@/app/services/adminService";
 
 interface User {
   id?: number | string;
@@ -24,9 +25,6 @@ interface User {
   role: string;
 }
 
-const API_URL = (
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
-).trim().replace(/\/+$/, "");
 const USERS_PER_PAGE = 10;
 
 export default function AdminUsersPage() {
@@ -54,28 +52,19 @@ export default function AdminUsersPage() {
         throw new Error("Access denied. Administrators only.");
       }
 
-      if (!API_URL) {
-        throw new Error("Backend API URL is not configured.");
-      }
+      const data = await adminService.getUsers(token);
 
-      const response = await fetch(`${API_URL}/admin/users`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        cache: "no-store",
-      });
+      const rawList = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.users)
+          ? data.users
+          : null;
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Unable to fetch customers.");
-      }
-
-      if (!Array.isArray(data.users)) {
+      if (!rawList) {
         throw new Error("Unexpected response from the server.");
       }
 
-      const customers: User[] = data.users
+      const customers: User[] = rawList
         .filter((user: User) => user.role === "user")
         .map((user: User) => ({
           ...user,
@@ -120,25 +109,7 @@ export default function AdminUsersPage() {
         throw new Error("Access denied. Administrators only.");
       }
 
-      if (!API_URL) {
-        throw new Error("Backend API URL is not configured.");
-      }
-
-      const response = await fetch(
-        `${API_URL}/admin/users/${user._id}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Unable to delete customer.");
-      }
+      await adminService.deleteUser(token, user._id!);
 
       const updatedUsers = users.filter(
         (item) => item._id !== user._id

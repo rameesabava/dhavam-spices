@@ -18,7 +18,7 @@ export async function GET(request: Request) {
       _id: String(u.id),
     }));
 
-    return NextResponse.json(formatted);
+    return NextResponse.json({ users: formatted });
   } catch (error: any) {
     return NextResponse.json(
       { message: error?.message || "Failed to load users" },

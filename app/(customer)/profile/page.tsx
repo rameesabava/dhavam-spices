@@ -61,8 +61,10 @@ export default function ProfilePage() {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        if (active) {
-          const user = response.data.user;
+        const data = response.data;
+        const user = data?.user ?? data?.profile ?? data;
+
+        if (active && user) {
           setProfile({
             username: user.username ?? "",
             email: user.email ?? "",
@@ -154,21 +156,28 @@ export default function ProfilePage() {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      const { user, token: updatedToken } = response.data;
+      const data = response.data;
+      const user = data?.user ?? data?.profile ?? data;
+      const updatedToken = data?.token;
 
       // Only replace the token if the server actually sent a new one.
-      // (Saving an undefined value would store the text "undefined" and log you out.)
       if (updatedToken) {
         sessionStorage.setItem("token", updatedToken);
       }
-      sessionStorage.setItem("username", user.username ?? "");
-      sessionStorage.setItem("role", user.role ?? "user");
+      if (user?.username) {
+        sessionStorage.setItem("username", user.username);
+      }
+      if (user?.role) {
+        sessionStorage.setItem("role", user.role);
+      }
 
-      setProfile({
-        username: user.username ?? "",
-        email: user.email ?? "",
-        phone: user.phone ?? "",
-      });
+      if (user) {
+        setProfile({
+          username: user.username ?? "",
+          email: user.email ?? "",
+          phone: user.phone ?? "",
+        });
+      }
 
       setCurrentPassword("");
       setNewPassword("");

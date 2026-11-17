@@ -18,10 +18,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { imageSrc } from "@/lib/image";
-
-const API_URL = (
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
-).trim().replace(/\/+$/, "");
+import { shopService } from "@/app/services/shopService";
 
 const ORDERS_PER_PAGE = 5;
 
@@ -126,33 +123,30 @@ export default function MyOrdersPage() {
         return;
       }
 
-      const response = await fetch(`${API_URL}/myOrders`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        cache: "no-store",
-      });
+      const data = await shopService.getMyOrders(token);
 
-      if (response.status === 401 || response.status === 403) {
+      const list = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.orders)
+          ? data.orders
+          : null;
+
+      if (!list) {
+        throw new Error("The server returned an invalid orders response.");
+      }
+
+      setOrders(list);
+    } catch (e: any) {
+      if (
+        e?.message?.includes("401") ||
+        e?.message?.includes("Unauthorized") ||
+        e?.message?.includes("403")
+      ) {
         sessionStorage.removeItem("token");
         sessionStorage.removeItem("username");
         window.location.href = "/login";
         return;
       }
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data?.message || "Unable to load your orders.");
-      }
-
-      if (!Array.isArray(data)) {
-        throw new Error("The server returned an invalid orders response.");
-      }
-
-      setOrders(data);
-    } catch (e) {
       setError(
         e instanceof Error ? e.message : "Unable to load your orders."
       );
@@ -296,23 +290,7 @@ export default function MyOrdersPage() {
       setCancelError("");
       setCancelMessage("");
 
-      const response = await fetch(
-        `${API_URL}/myOrders/cancel/${orderId}`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      const data = await response.json().catch(() => null);
-
-      if (!response.ok) {
-        throw new Error(
-          data?.message || "Unable to cancel this order."
-        );
-      }
+      const data = await shopService.cancelOrder(token, orderId);
 
       setOrders((previous) =>
         previous.map((order) =>

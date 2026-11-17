@@ -5,7 +5,11 @@ const API_URL = (
 /** Accepts a full URL, relative API path, or filename and always returns a valid image URL. */
 export function imageSrc(image?: string | null): string {
   if (!image) return "";
-  const trimmed = image.trim();
+  let trimmed = image.trim();
+
+  // Strip localhost / 127.0.0.1 origins saved during development
+  trimmed = trimmed.replace(/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?/i, "");
+
   if (/^(https?:|data:|blob:)/i.test(trimmed)) return trimmed;
 
   if (trimmed.startsWith("/")) {

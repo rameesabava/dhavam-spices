@@ -18,9 +18,10 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
+import { imageSrc } from "@/lib/image";
 
 const API_URL = (
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+  process.env.NEXT_PUBLIC_API_URL || ""
 ).trim().replace(/\/+$/, "");
 
 type ProductSize = {
@@ -71,21 +72,7 @@ function parseSizes(value: Product["sizes"]): ProductSize[] {
 }
 
 function getImageUrl(image: string): string {
-  if (!image) return "";
-
-  if (/^https?:\/\//i.test(image)) {
-    return image;
-  }
-
-  if (image.startsWith("/")) {
-    return `${API_URL}${image}`;
-  }
-
-  if (image.startsWith("uploads/")) {
-    return `${API_URL}/${image}`;
-  }
-
-  return `${API_URL}/uploads/${image}`;
+  return imageSrc(image);
 }
 
 export default function EditProductClient() {
@@ -118,8 +105,10 @@ export default function EditProductClient() {
         throw new Error("Please log in as an admin.");
       }
 
+      const endpoint = `/api/product/${encodeURIComponent(String(productId))}`;
+      const url = API_URL ? `${API_URL}${endpoint}` : endpoint;
       const response = await fetch(
-        `${API_URL}/api/product/${encodeURIComponent(String(productId))}`,
+        url,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -264,8 +253,10 @@ export default function EditProductClient() {
         formData.append("image", imageFile);
       }
 
+      const endpoint = `/api/product/${encodeURIComponent(String(productId))}`;
+      const url = API_URL ? `${API_URL}${endpoint}` : endpoint;
       const response = await fetch(
-        `${API_URL}/api/product/${encodeURIComponent(String(productId))}`,
+        url,
         {
           method: "PUT",
           headers: {

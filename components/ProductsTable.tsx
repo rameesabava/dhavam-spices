@@ -15,6 +15,7 @@ import {
   ChevronsRight,
 } from "lucide-react";
 import { adminService } from "@/app/services/adminService";
+import { imageSrc } from "@/lib/image";
 
 type Product = {
   id?: string | number;
@@ -25,33 +26,13 @@ type Product = {
   image?: string;
   imageUrl?: string;
   sizes?: string[] | string | { size: string; price: string | number }[];
-
-}; const API_URL = (
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
-).replace(/\/+$/, "");
+};
 
 const PAGE_SIZE = 9;
+
 function getProductImageUrl(product: Product): string | null {
-  const image = product.imageUrl || product.image;
-
-  if (!image) return null;
-
-  // Image is already a complete URL
-  if (image.startsWith("http://") || image.startsWith("https://")) {
-    return image;
-  }
-
-  // Image path already contains /uploads/
-  if (image.startsWith("/")) {
-    return `${API_URL}${image}`;
-  }
-
-  if (image.startsWith("uploads/")) {
-    return `${API_URL}/${image}`;
-  }
-
-  // Only filename is stored
-  return `${API_URL}/uploads/${image}`;
+  const src = imageSrc(product.imageUrl || product.image);
+  return src || null;
 }
 function formatSizes(value?: Product["sizes"]) {
   if (Array.isArray(value)) {
