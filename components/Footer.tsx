@@ -13,20 +13,20 @@ const INSTAGRAM_URL =
   "https://www.instagram.com/dhavam_spices?psln=MTI2emRjOG1qMzBlNw%3D%3D";
 
 const SHOP_LINKS = [
-  { label: "Cardamom", href: "/products" },
-  { label: "Pepper", href: "/products" },
-  { label: "Cloves", href: "/products" },
-  { label: "Cinnamon", href: "/products" },
-  { label: "Star anise", href: "/products" },
-  { label: "Black coffee powder", href: "/products" },
-  { label: "Spice powders", href: "/products" },
+  { label: "Cardamom", href: "/products#whole" },
+  { label: "Pepper", href: "/products#whole" },
+  { label: "Cloves", href: "/products#whole" },
+  { label: "Cinnamon", href: "/products#whole" },
+  { label: "Star anise", href: "/products#whole" },
+  { label: "Black coffee powder", href: "/products#ground" },
+  { label: "Spice powders", href: "/products#ground" },
 ];
 
 const COMPANY_LINKS = [
   { label: "Our story", href: "/about" },
   { label: "Contact us", href: "/contact" },
   { label: "Our Products", href: "/products" },
-  { label: "Admin Portal", href: "/admin" },
+  { label: "Admin Portal", href: "/admin", nofollow: true },
 ];
 
 const focusRing =
@@ -98,7 +98,11 @@ export default function Footer() {
             <ul className="space-y-2.5">
               {COMPANY_LINKS.map((link) => (
                 <li key={link.label}>
-                  <Link href={link.href} className={linkClass}>
+                  <Link
+                    href={link.href}
+                    rel={link.nofollow ? "nofollow" : undefined}
+                    className={linkClass}
+                  >
                     {link.label}
                   </Link>
                 </li>

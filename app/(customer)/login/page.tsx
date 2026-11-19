@@ -4,7 +4,14 @@ import Link from "next/link";
 import Reveal from "@/components/Reveal";
 import LoginForm from "@/components/LoginForm";
 
-export const metadata: Metadata = { title: "Log in", description: "Log in to your Dhavam Spices account." };
+export const metadata: Metadata = {
+  title: "Log in",
+  description: "Log in to your Dhavam Spices account.",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export default function LoginPage() {
   return (

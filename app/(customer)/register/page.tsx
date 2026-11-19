@@ -4,7 +4,14 @@ import Link from "next/link";
 import Reveal from "@/components/Reveal";
 import RegisterForm from "@/components/RegisterForm";
 
-export const metadata: Metadata = { title: "Create account", description: "Create your Dhavam Spices account." };
+export const metadata: Metadata = {
+  title: "Create account",
+  description: "Create your Dhavam Spices account.",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 const PERKS = ["Faster checkout every time", "Track your orders", "Be first to know about new spices"];
 

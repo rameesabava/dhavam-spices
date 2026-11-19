@@ -1,8 +1,18 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import Reveal from "@/components/Reveal";
 import StarMark from "@/components/StarMark";
 import { waLink } from "@/lib/site";
+
+export const metadata: Metadata = {
+  title: "Dhavam Spices | Pure Farm-Direct Spices in Chennai",
+  description:
+    "100% natural, farm-direct spices and masalas in Chennai. Premium cardamom, black pepper, cloves, cinnamon, star anise, and fresh powders packed in clear jars.",
+  alternates: {
+    canonical: "/",
+  },
+};
 
 const HERO_IMG = "/images/banner2.png";
 // Real pixel size of banner.png (from your original aspect-[1774/887])

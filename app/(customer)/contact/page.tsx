@@ -1,37 +1,42 @@
-
 import type { Metadata } from "next";
 import Link from "next/link";
+import { SITE } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Contact | Dhavam Spices",
+  title: "Contact Us & Order Spices | Dhavam Spices Chennai",
   description:
-    "Premium, pure, unadulterated spices and masalas straight from the farm. Order by WhatsApp, phone or email.",
+    "Order 100% pure, farm-direct cardamom, black pepper, cloves, cinnamon, star anise and coffee in Chennai. Contact Dhavam Spices via WhatsApp, phone, or email.",
+  alternates: {
+    canonical: "/contact",
+  },
+  openGraph: {
+    title: "Contact Us | Dhavam Spices Chennai",
+    description:
+      "Order 100% pure, farm-direct spices in Chennai. Contact Dhavam Spices via WhatsApp, phone, or email.",
+    url: "/contact",
+  },
 };
 
-const OWNER = "Dhavam Spices";
+const OWNER = SITE.name;
 
-const PHONES = [
-  { display: "63830 73503", tel: "+916383073503" },
-  { display: "81481 23417", tel: "+918148123417" },
-];
+const PHONES = SITE.phones;
 
-const EMAIL = "dhavamspices@gmail.com";
+const EMAIL = SITE.email;
 
 const ADDRESS = [
-  "Casagrand Northern Star",
-  "Madhavaram, Chennai 600110",
+  SITE.address.streetAddress,
+  `${SITE.address.addressLocality} ${SITE.address.postalCode}`,
 ];
 
 const MAPS_URL =
   "https://www.google.com/maps/search/?api=1&query=Casagrand+Northern+Star+Madhavaram+Chennai+600110";
 
-const WHATSAPP_URL = `https://wa.me/916383073503?text=${encodeURIComponent(
+const WHATSAPP_URL = `https://wa.me/${SITE.whatsapp}?text=${encodeURIComponent(
   "Hi Dhavam Spices, I'd like to place an order."
 )}`;
 
-// Replace these with your actual social media profile URLs
-const FACEBOOK_URL = "https://www.facebook.com/profile.php?id=61595939693155";
-const INSTAGRAM_URL = "https://www.instagram.com/dhavam_spices?psln=MTI2emRjOG1qMzBlNw%3D%3D";
+const FACEBOOK_URL = SITE.socials.facebook;
+const INSTAGRAM_URL = SITE.socials.instagram;
 
 const SPICES = [
   "Cardamom",
@@ -52,98 +57,103 @@ const row = "grid gap-1 py-5 sm:grid-cols-[9rem_1fr] sm:gap-6";
 const term = "text-sm font-medium text-[#b9c29a]";
 
 export default function ContactPage() {
+  const contactSchema = {
+    "@context": "https://schema.org",
+    "@type": "ContactPage",
+    name: "Contact Dhavam Spices",
+    url: `${SITE.url}/contact`,
+    description:
+      "Contact information for Dhavam Spices in Chennai. Inquire and order farm-direct spices by phone, WhatsApp, or email.",
+    mainEntity: {
+      "@type": "LocalBusiness",
+      name: SITE.name,
+      telephone: PHONES[0].tel,
+      email: EMAIL,
+      address: {
+        "@type": "PostalAddress",
+        streetAddress: SITE.address.streetAddress,
+        addressLocality: SITE.address.addressLocality,
+        addressRegion: SITE.address.addressRegion,
+        postalCode: SITE.address.postalCode,
+        addressCountry: SITE.address.addressCountry,
+      },
+    },
+  };
+
   return (
     <main className="bg-[#2f381b] px-6 py-20 text-[#e6ebdc] sm:py-28">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(contactSchema) }}
+      />
       <div className="mx-auto max-w-2xl">
-
         <h1 className="text-4xl font-semibold leading-tight text-white sm:text-5xl">
           Pure spices, straight from the farm to your kitchen.
         </h1>
 
-        <p className="mt-5 max-w-prose text-lg leading-relaxed text-[#d5dcc0]">
-          Dhavam Spices sells premium, unadulterated spices and masalas
-          sourced directly from the farm. Message us with what you need
-          and how much, and we&apos;ll reply with price and delivery details.
+        <p className="mt-6 text-lg leading-relaxed text-[#d5dcc0]">
+          We pack whole and freshly ground spices in clear jars, direct from the
+          farm. Reach out to order, ask about bulk supplies, or just say hello.
         </p>
 
-        {/* WhatsApp button */}
-        <a
-          href={WHATSAPP_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={`mt-10 inline-flex items-center justify-center rounded-full bg-[#9a432a] px-7 py-3.5 text-base font-semibold text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#b4502f] hover:shadow-lg active:translate-y-0 active:scale-[0.97] motion-reduce:transition-none motion-reduce:hover:translate-y-0 ${focus}`}
-        >
-          Message us on WhatsApp
-        </a>
-
-        {/* Social media links */}
-        <div className="mt-8">
-          <p className="mb-4 text-sm font-medium text-[#b9c29a]">
-            Follow us on social media
-          </p>
-
-          <div className="flex flex-wrap gap-3">
-
-            {/* Facebook */}
-            <a
-              href={FACEBOOK_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Follow Dhavam Spices on Facebook"
-              className={`inline-flex items-center gap-2 rounded-full border border-[#56633a] px-5 py-3 text-white transition-all duration-300 hover:-translate-y-1 hover:bg-[#56633a] ${focus}`}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                className="h-5 w-5"
+        <dl className="mt-12 divide-y divide-[#424e27] border-y border-[#424e27]">
+          {/* WhatsApp */}
+          <div className={row}>
+            <dt className={term}>Order online</dt>
+            <dd>
+              <a
+                href={WHATSAPP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`inline-flex items-center gap-2 font-medium text-[#e3a27f] hover:underline ${focus}`}
               >
-                <path d="M13.5 21v-8h2.7l.4-3.1h-3.1v-2c0-.9.3-1.5 1.6-1.5h1.7V3.6c-.3 0-1.3-.1-2.5-.1-2.5 0-4.2 1.5-4.2 4.3v2.1H7.3V13h2.8v8h3.4z" />
-              </svg>
-              Facebook
-            </a>
-
-            {/* Instagram */}
-            <a
-              href={INSTAGRAM_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Follow Dhavam Spices on Instagram"
-              className={`inline-flex items-center gap-2 rounded-full border border-[#56633a] px-5 py-3 text-white transition-all duration-300 hover:-translate-y-1 hover:bg-[#56633a] ${focus}`}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                className="h-5 w-5"
-              >
-                <rect x="3" y="3" width="18" height="18" rx="5" />
-                <circle cx="12" cy="12" r="4" />
-                <circle cx="17.5" cy="6.5" r=".8" fill="currentColor" />
-              </svg>
-              Instagram
-            </a>
-
+                <span>Chat on WhatsApp</span>
+                <span aria-hidden="true">→</span>
+              </a>
+              <p className="mt-1 text-sm text-[#b9c29a]">
+                Quickest way to check prices and place an order.
+              </p>
+            </dd>
           </div>
-        </div>
-
-        <dl className="mt-16 divide-y divide-[#56633a] border-y border-[#56633a]">
 
           {/* Phone */}
           <div className={row}>
-            <dt className={term}>Call {OWNER}</dt>
-            <dd className="flex flex-col gap-1">
+            <dt className={term}>Phone</dt>
+            <dd className="space-y-1">
               {PHONES.map((p) => (
-                <a
-                  key={p.tel}
-                  href={`tel:${p.tel}`}
-                  className={`w-fit ${link}`}
-                >
-                  {p.display}
-                </a>
+                <div key={p.tel}>
+                  <a href={`tel:${p.tel}`} className={link}>
+                    {p.display}
+                  </a>
+                </div>
               ))}
+            </dd>
+          </div>
+
+          {/* Social Media */}
+          <div className={row}>
+            <dt className={term}>Follow us</dt>
+            <dd className="space-y-2">
+              <div>
+                <a
+                  href={FACEBOOK_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={link}
+                >
+                  Facebook
+                </a>
+              </div>
+              <div>
+                <a
+                  href={INSTAGRAM_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={link}
+                >
+                  Instagram
+                </a>
+              </div>
             </dd>
           </div>
 
@@ -151,10 +161,7 @@ export default function ContactPage() {
           <div className={row}>
             <dt className={term}>Email</dt>
             <dd>
-              <a
-                href={`mailto:${EMAIL}`}
-                className={`break-all ${link}`}
-              >
+              <a href={`mailto:${EMAIL}`} className={`break-all ${link}`}>
                 {EMAIL}
               </a>
             </dd>
@@ -201,7 +208,6 @@ export default function ContactPage() {
               </p>
             </dd>
           </div>
-
         </dl>
       </div>
     </main>
